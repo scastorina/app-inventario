@@ -72,7 +72,7 @@
         </div>
         
         <footer class="text-center mt-12 text-sm text-gray-500">
-            <p>ID de Sesión (para colaboración): <span id="user-id-display" class="font-mono bg-gray-200 p-1 rounded"></span></p>
+            <p>ID de Sesión: <span id="user-id-display" class="font-mono bg-gray-200 p-1 rounded"></span></p>
         </footer>
     </div>
 
@@ -94,10 +94,11 @@
     <script type="module">
         // Importaciones de Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Configuración de Firebase ---
+        // PEGA AQUÍ TU PROPIO OBJETO firebaseConfig DE TU PROYECTO
         const firebaseConfig = {
   apiKey: "AIzaSyAsjMYndgto8apKjasCtD7Hsblw5f6DV8c",
   authDomain: "stock-pomco.firebaseapp.com",
@@ -106,13 +107,15 @@
   messagingSenderId: "414907870481",
   appId: "1:414907870481:web:04d62d1dc974cc466cb0b0",
   measurementId: "G-G7QXY50X7B"
+};
 
+        // --- Declaración de Variables ---
         let app, db, auth, userId;
-        let inventarioActual = []; // Para guardar el estado del inventario
+        let inventarioActual = [];
 
         // --- Referencias a Elementos del DOM ---
         const nombreInsumoInput = document.getElementById('nombre-insumo');
-        const codigoInsumoInput = document.getElementById('codigo-insumo'); // Nuevo
+        const codigoInsumoInput = document.getElementById('codigo-insumo');
         const cantidadInicialInput = document.getElementById('cantidad-inicial');
         const agregarBtn = document.getElementById('agregar-btn');
         const listaInsumosContainer = document.getElementById('lista-insumos');
@@ -120,8 +123,6 @@
         const emptyState = document.getElementById('empty-state');
         const userIdDisplay = document.getElementById('user-id-display');
         const analizarBtn = document.getElementById('analizar-btn');
-
-        // Modal elements
         const modal = document.getElementById('modal');
         const modalBackdrop = document.getElementById('modal-backdrop');
         const modalContent = document.getElementById('modal-content');
@@ -140,24 +141,23 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
 
-                onAuthStateChanged(auth, user => {
-    if (user) {
-        userId = user.uid;
-        userIdDisplay.textContent = userId;
-        escucharCambiosEnInsumos();
-        configurarEventListeners();
-    }
-});
-
-// Si no hay un usuario, inicia sesión de forma anónima
-if (!auth.currentUser) {
-    await signInAnonymously(auth);
-}
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        // Usuario ya está autenticado
+                        userId = user.uid;
+                        userIdDisplay.textContent = userId;
+                        configurarEventListeners();
+                        escucharCambiosEnInsumos();
+                    } else {
+                        // No hay usuario, iniciar sesión anónimamente
+                        await signInAnonymously(auth);
+                    }
+                });
 
             } catch (error) {
                 console.error("Error inicializando Firebase:", error);
-                listaInsumosContainer.innerHTML = `<p class="text-red-500 text-center">Error al conectar con la base de datos.</p>`;
                 loadingState.classList.add('hidden');
+                listaInsumosContainer.innerHTML = `<p class="text-red-500 text-center">Error al conectar con la base de datos. Revisa la consola.</p>`;
             }
         }
 
@@ -165,18 +165,15 @@ if (!auth.currentUser) {
         function showModal(title, body, type = 'alert') {
             modalTitle.textContent = title;
             modalBody.innerHTML = body;
-
             modalOkBtn.classList.toggle('hidden', type !== 'alert');
             modalCancelBtn.classList.toggle('hidden', type !== 'confirm');
             modalConfirmBtn.classList.toggle('hidden', type !== 'confirm');
-
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             setTimeout(() => {
                 modalBackdrop.classList.remove('opacity-0');
                 modalContent.classList.remove('scale-95');
             }, 10);
-
             return new Promise(resolve => {
                 modalResolve = resolve;
             });
@@ -199,7 +196,7 @@ if (!auth.currentUser) {
 
             listaInsumosContainer.addEventListener('click', async (e) => {
                 const target = e.target.closest('button');
-                if (!target) return;
+                if (!target || !userId) return;
 
                 const insumoId = target.dataset.id;
                 if (!insumoId) return;
@@ -230,16 +227,16 @@ if (!auth.currentUser) {
         }
 
         async function agregarInsumo() {
-            const nombre = nombreInsumoInput.value.trim();
-            const codigo = codigoInsumoInput.value.trim(); // Nuevo
-            const cantidad = parseInt(cantidadInicialInput.value, 10);
-
-            if (!nombre) {
-                showModal('Campo Vacío', 'Por favor, ingresa un nombre para el insumo.');
+            if (!userId) {
+                showModal('Error', 'No se ha podido identificar al usuario. Por favor, recarga la página.');
                 return;
             }
-            if (!codigo) { // Nuevo
-                showModal('Campo Vacío', 'Por favor, ingresa un código para el insumo.');
+            const nombre = nombreInsumoInput.value.trim();
+            const codigo = codigoInsumoInput.value.trim();
+            const cantidad = parseInt(cantidadInicialInput.value, 10);
+
+            if (!nombre || !codigo) {
+                showModal('Campos Vacíos', 'Por favor, ingresa un nombre y un código para el insumo.');
                 return;
             }
             if (isNaN(cantidad) || cantidad < 0) {
@@ -248,25 +245,26 @@ if (!auth.currentUser) {
             }
 
             try {
-                const insumosCollection = collection(db, `artifacts/${appId}/users/${userId}/insumos`);
+                const insumosCollection = collection(db, "insumos", userId, "items");
                 await addDoc(insumosCollection, { 
                     nombre, 
-                    codigo, // Nuevo
+                    codigo,
                     cantidad, 
                     createdAt: new Date() 
                 });
                 nombreInsumoInput.value = '';
-                codigoInsumoInput.value = ''; // Nuevo
+                codigoInsumoInput.value = '';
                 cantidadInicialInput.value = '';
                 nombreInsumoInput.focus();
             } catch (error) {
                 console.error("Error al agregar el insumo: ", error);
-                showModal('Error', 'Hubo un error al guardar el insumo. Inténtalo de nuevo.');
+                showModal('Error', 'Hubo un error al guardar el insumo. Revisa la consola para más detalles.');
             }
         }
 
         function escucharCambiosEnInsumos() {
-            const insumosCollection = collection(db, `artifacts/${appId}/users/${userId}/insumos`);
+            if (!userId) return;
+            const insumosCollection = collection(db, "insumos", userId, "items");
             const q = query(insumosCollection);
 
             onSnapshot(q, (snapshot) => {

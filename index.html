@@ -35,11 +35,12 @@
         <!-- Sección para agregar nuevos insumos -->
         <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
             <h2 class="text-2xl font-semibold mb-4">Agregar Nuevo Insumo</h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <input type="text" id="nombre-insumo" placeholder="Nombre del insumo" class="md:col-span-2 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="text" id="codigo-insumo" placeholder="Código (ej: T-001)" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" id="nombre-insumo" placeholder="Nombre del insumo" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="codigo-insumo" placeholder="Código (Opcional)" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <input type="number" id="cantidad-inicial" placeholder="Cantidad" min="0" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button id="agregar-btn" class="md:col-span-4 bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-300 flex items-center justify-center">
+                <input type="text" id="unidad-insumo" placeholder="Unidad (ej: Lt, Kg)" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="agregar-btn" class="md:col-span-2 bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-300 flex items-center justify-center">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
                     </svg>
@@ -65,6 +66,11 @@
                 </svg>
                 <h3 class="mt-2 text-lg font-medium text-gray-900">Inventario vacío</h3>
                 <p class="mt-1 text-sm text-gray-500">Aún no has agregado ningún insumo. ¡Empieza usando el formulario de arriba!</p>
+                <div class="mt-6">
+                    <button id="cargar-datos-btn" class="bg-green-600 text-white font-semibold py-2 px-5 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-300">
+                        Cargar Lista de Insumos Inicial
+                    </button>
+                </div>
             </div>
             <div id="lista-insumos" class="space-y-3">
                 <!-- Los insumos se cargarán aquí dinámicamente -->
@@ -94,20 +100,13 @@
     <script type="module">
         // Importaciones de Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, increment, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Configuración de Firebase ---
-        // PEGA AQUÍ TU PROPIO OBJETO firebaseConfig DE TU PROYECTO
-        const firebaseConfig = {
-  apiKey: "AIzaSyAsjMYndgto8apKjasCtD7Hsblw5f6DV8c",
-  authDomain: "stock-pomco.firebaseapp.com",
-  projectId: "stock-pomco",
-  storageBucket: "stock-pomco.firebasestorage.app",
-  messagingSenderId: "414907870481",
-  appId: "1:414907870481:web:04d62d1dc974cc466cb0b0",
-  measurementId: "G-G7QXY50X7B"
-};
+        // FIX: Reverted to use environment variables for Firebase config to fix auth error.
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         // --- Declaración de Variables ---
         let app, db, auth, userId;
@@ -117,10 +116,12 @@
         const nombreInsumoInput = document.getElementById('nombre-insumo');
         const codigoInsumoInput = document.getElementById('codigo-insumo');
         const cantidadInicialInput = document.getElementById('cantidad-inicial');
+        const unidadInsumoInput = document.getElementById('unidad-insumo');
         const agregarBtn = document.getElementById('agregar-btn');
         const listaInsumosContainer = document.getElementById('lista-insumos');
         const loadingState = document.getElementById('loading-state');
         const emptyState = document.getElementById('empty-state');
+        const cargarDatosBtn = document.getElementById('cargar-datos-btn');
         const userIdDisplay = document.getElementById('user-id-display');
         const analizarBtn = document.getElementById('analizar-btn');
         const modal = document.getElementById('modal');
@@ -143,16 +144,18 @@
 
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
-                        // Usuario ya está autenticado
                         userId = user.uid;
                         userIdDisplay.textContent = userId;
                         configurarEventListeners();
                         escucharCambiosEnInsumos();
-                    } else {
-                        // No hay usuario, iniciar sesión anónimamente
-                        await signInAnonymously(auth);
                     }
                 });
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
 
             } catch (error) {
                 console.error("Error inicializando Firebase:", error);
@@ -193,6 +196,7 @@
         function configurarEventListeners() {
             agregarBtn.addEventListener('click', agregarInsumo);
             analizarBtn.addEventListener('click', analizarInventarioConGemini);
+            cargarDatosBtn.addEventListener('click', cargarDatosIniciales);
 
             listaInsumosContainer.addEventListener('click', async (e) => {
                 const target = e.target.closest('button');
@@ -233,10 +237,11 @@
             }
             const nombre = nombreInsumoInput.value.trim();
             const codigo = codigoInsumoInput.value.trim();
-            const cantidad = parseInt(cantidadInicialInput.value, 10);
+            const cantidad = parseFloat(cantidadInicialInput.value);
+            const unidad = unidadInsumoInput.value.trim();
 
-            if (!nombre || !codigo) {
-                showModal('Campos Vacíos', 'Por favor, ingresa un nombre y un código para el insumo.');
+            if (!nombre || !unidad) {
+                showModal('Campos Vacíos', 'Por favor, ingresa un nombre y una unidad para el insumo.');
                 return;
             }
             if (isNaN(cantidad) || cantidad < 0) {
@@ -248,13 +253,15 @@
                 const insumosCollection = collection(db, "insumos", userId, "items");
                 await addDoc(insumosCollection, { 
                     nombre, 
-                    codigo,
+                    codigo: codigo || '',
                     cantidad, 
+                    unidad,
                     createdAt: new Date() 
                 });
                 nombreInsumoInput.value = '';
                 codigoInsumoInput.value = '';
                 cantidadInicialInput.value = '';
+                unidadInsumoInput.value = '';
                 nombreInsumoInput.focus();
             } catch (error) {
                 console.error("Error al agregar el insumo: ", error);
@@ -301,7 +308,7 @@
                             <p class="text-sm text-gray-500 font-mono">Código: ${insumo.codigo || 'N/A'}</p>
                         </div>
                         <div class="flex items-center gap-3">
-                            <span class="font-bold text-2xl ${stockColorClass} min-w-[50px] text-center">${insumo.cantidad}</span>
+                            <span class="font-bold text-2xl ${stockColorClass} min-w-[80px] text-center">${insumo.cantidad} ${insumo.unidad}</span>
                             <div class="flex flex-col sm:flex-row gap-2">
                                 <button data-id="${insumo.id}" data-action="restar" class="bg-red-100 text-red-700 h-10 w-10 rounded-full flex items-center justify-center font-bold text-2xl hover:bg-red-200 transition-colors" aria-label="Restar uno">-</button>
                                 <button data-id="${insumo.id}" data-action="sumar" class="bg-green-100 text-green-700 h-10 w-10 rounded-full flex items-center justify-center font-bold text-xl hover:bg-green-200 transition-colors" aria-label="Sumar uno">+</button>
@@ -316,8 +323,52 @@
                 `;
             }).join('');
         }
+        
+        async function cargarDatosIniciales() {
+            if (!userId) {
+                showModal('Error', 'Espera a que se asigne un ID de sesión para cargar los datos.');
+                return;
+            }
 
-        // --- Lógica de Gemini API ---
+            const insumosIniciales = [
+                { nombre: "Phytogard Potasio", cantidad: 120, unidad: "Lt" }, { nombre: "Phytogard Magnesio", cantidad: 60, unidad: "Lt" },
+                { nombre: "CaB", cantidad: 100, unidad: "Lt" }, { nombre: "Aliette", cantidad: 349, unidad: "kg" },
+                { nombre: "Mulan", cantidad: 28.5, unidad: "Lt" }, { nombre: "Dicamba", cantidad: 4, unidad: "Lt" },
+                { nombre: "Cytoplant", cantidad: 55, unidad: "Lt" }, { nombre: "Koltar", cantidad: 20, unidad: "Lt" },
+                { nombre: "Bioamino-L", cantidad: 40, unidad: "Lt" }, { nombre: "Sulfacid", cantidad: 20, unidad: "Lt" },
+                { nombre: "Natur'l Oleo", cantidad: 380, unidad: "Lt" }, { nombre: "Stoller Zn", cantidad: 180, unidad: "Lt" },
+                { nombre: "Stoller Mg", cantidad: 160, unidad: "Lt" }, { nombre: "Glufosinato", cantidad: 32, unidad: "Lt" },
+                { nombre: "Glifosato", cantidad: 40, unidad: "Lt" }, { nombre: "2.4 D", cantidad: 2, unidad: "Lt" },
+                { nombre: "2.4 DB", cantidad: 8.5, unidad: "Lt" }, { nombre: "Clorpirifos", cantidad: 40, unidad: "Lt" },
+                { nombre: "Zintrac", cantidad: 50, unidad: "Lt" }, { nombre: "Oxicloruro de cobre", cantidad: 50, unidad: "kg" },
+                { nombre: "Nordox", cantidad: 200, unidad: "kg" }, { nombre: "Basfoliar Kelp", cantidad: 32, unidad: "Lt" },
+                { nombre: "Cormoran", cantidad: 17.5, unidad: "Lt" }, { nombre: "Imidan 70", cantidad: 8, unidad: "kg" },
+                { nombre: "Intrepid", cantidad: 3, unidad: "Lt" }, { nombre: "Shark", cantidad: 6.2, unidad: "Lt" },
+                { nombre: "Alion", cantidad: 8, unidad: "Lt" }, { nombre: "Closer", cantidad: 10, unidad: "Lt" },
+                { nombre: "Komet", cantidad: 3, unidad: "Lt" }, { nombre: "Amistar Top", cantidad: 19, unidad: "Lt" },
+                { nombre: "Ridomil", cantidad: 32, unidad: "kg" }, { nombre: "Blaukorn 12-10-20+2+", cantidad: 50, unidad: "Kg" },
+                { nombre: "Basfoliar 25-10-17", cantidad: 50, unidad: "Kg" }, { nombre: "Hidroxido de Cobre", cantidad: 12, unidad: "kg" },
+                { nombre: "Verno", cantidad: 10, unidad: "Kg" }, { nombre: "Atrazina", cantidad: 3, unidad: "kg" }
+            ];
+
+            try {
+                const batch = writeBatch(db);
+                const insumosCollection = collection(db, "insumos", userId, "items");
+                
+                insumosIniciales.forEach(insumo => {
+                    const docRef = doc(insumosCollection);
+                    batch.set(docRef, { ...insumo, codigo: '', createdAt: new Date() });
+                });
+
+                await batch.commit();
+                showModal('Éxito', 'La lista de insumos iniciales se ha cargado correctamente.');
+
+            } catch (error) {
+                console.error("Error al cargar datos iniciales:", error);
+                showModal('Error', 'No se pudieron cargar los datos iniciales.');
+            }
+        }
+
         async function analizarInventarioConGemini() {
             if (inventarioActual.length === 0) {
                 showModal('Inventario Vacío', 'No hay insumos para analizar. Agrega algunos primero.');
@@ -334,8 +385,8 @@
                 </div>`;
             showModal('✨ Análisis Inteligente', loadingHtml, 'alert');
             
-            const listaFormateada = inventarioActual.map(item => `- Código: ${item.codigo}, Nombre: ${item.nombre}, Cantidad: ${item.cantidad} unidades`).join('\n');
-            const prompt = `Eres un asistente de gestión de inventario para un taller o galpón. Analiza la siguiente lista de insumos, sus códigos y sus cantidades. Proporciona un resumen del estado del inventario, identifica los artículos con stock bajo (10 unidades o menos) y sugiere cuándo reponerlos. Además, ofrece ideas creativas de proyectos que se podrían realizar combinando algunos de estos materiales. Formatea tu respuesta de manera clara y útil usando títulos en negrita y viñetas. La lista de inventario es:\n\n${listaFormateada}\n\nPor favor, responde en español.`;
+            const listaFormateada = inventarioActual.map(item => `- Código: ${item.codigo || 'N/A'}, Nombre: ${item.nombre}, Cantidad: ${item.cantidad} ${item.unidad}`).join('\n');
+            const prompt = `Eres un asistente de gestión de inventario para un taller o galpón. Analiza la siguiente lista de insumos, sus códigos, cantidades y unidades. Proporciona un resumen del estado del inventario, identifica los artículos con stock bajo (10 unidades o menos) y sugiere cuándo reponerlos. Además, ofrece ideas creativas de proyectos que se podrían realizar combinando algunos de estos materiales. Formatea tu respuesta de manera clara y útil usando títulos en negrita y viñetas. La lista de inventario es:\n\n${listaFormateada}\n\nPor favor, responde en español.`;
 
             try {
                 const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];

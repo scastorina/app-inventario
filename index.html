@@ -117,7 +117,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, increment, writeBatch, enablePersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // FIX: Changed 'enablePersistence' to 'enableIndexedDbPersistence'
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, increment, writeBatch, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAsjMYndgto8apKjasCtD7Hsblw5f6DV8c",
@@ -129,7 +130,7 @@
             measurementId: "G-G7QXY50X7B"
         };
 
-        let app, db, auth, userId, inventarioActual = [], modalResolve;
+        let app, db, auth, userId, inventarioActual = [], modalResolve, isEditing = false;
 
         const refs = {
             nombreInsumo: document.getElementById('nombre-insumo'), codigoInsumo: document.getElementById('codigo-insumo'),
@@ -155,13 +156,10 @@
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                // Habilitar persistencia offline
-                await enablePersistence(db).catch((err) => {
-                    if (err.code == 'failed-precondition') {
-                        console.warn("Persistencia offline no pudo ser habilitada, múltiples solapas abiertas?");
-                    } else if (err.code == 'unimplemented') {
-                        console.warn("El navegador actual no soporta persistencia offline.");
-                    }
+                // FIX: Changed 'enablePersistence' to 'enableIndexedDbPersistence'
+                await enableIndexedDbPersistence(db).catch((err) => {
+                    if (err.code == 'failed-precondition') console.warn("Persistencia offline no habilitada, múltiples solapas abiertas?");
+                    else if (err.code == 'unimplemented') console.warn("El navegador no soporta persistencia offline.");
                 });
 
                 onAuthStateChanged(auth, async (user) => {
@@ -207,7 +205,7 @@
 
         function manejarErrorDePermisos(error) {
             console.error("Error de permisos:", error);
-            showModal("Error de Permisos", `<p class="mb-3">La app no tiene permiso para acceder a la base de datos. Esto usualmente se debe a las <strong>Reglas de Seguridad</strong> de tu proyecto en Firebase.</p><p class="mb-2">Por favor, ve a <strong>Firestore Database > Reglas</strong> en tu Consola de Firebase y usa estas reglas:</p><div class="code-block">rules_version = '2';<br>service cloud.firestore {<br>&nbsp;&nbsp;match /databases/{database}/documents {<br>&nbsp;&nbsp;&nbsp;&nbsp;match /insumos/{userId}/{document=**} {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allow read, write: if request.auth != null && request.auth.uid == userId;<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;}<br>}</div>`);
+            showModal("Error de Permisos", `<p class="mb-3">La app no tiene permiso para acceder a la base de datos. Esto se debe a que las <strong>Reglas de Seguridad</strong> de tu proyecto en Firebase no están configuradas correctamente.</p><p class="mb-2">Por favor, ve a <strong>Firestore Database > Reglas</strong> en tu Consola de Firebase y usa estas reglas:</p><div class="code-block">rules_version = '2';<br>service cloud.firestore {<br>&nbsp;&nbsp;match /databases/{database}/documents {<br>&nbsp;&nbsp;&nbsp;&nbsp;match /insumos/{userId}/{document=**} {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allow read, write: if request.auth != null && request.auth.uid == userId;<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;}<br>}</div>`);
         }
 
         function configurarEventListeners() {
@@ -247,24 +245,33 @@
                     if (error.code === 'permission-denied') manejarErrorDePermisos(error);
                     else { console.error("Error:", error); showModal("Error", "No se pudo realizar la operación."); }
                 }
-            } else if (span) {
+            } else if (span && !isEditing) { // Solo permitir editar si no hay otra edición en curso
+                isEditing = true;
                 const insumoId = span.dataset.id;
                 const insumo = inventarioActual.find(item => item.id === insumoId);
-                if (insumo) {
-                    renderizarListaInsumos(inventarioActual);
-                    const newSpanElement = document.querySelector(`span[data-id="${insumoId}"]`);
-                    if (newSpanElement) editarCantidadDirectamente(newSpanElement, insumo);
-                }
+                if (insumo) editarCantidadDirectamente(span, insumo);
             }
         }
         
         function editarCantidadDirectamente(spanElement, insumo) {
-            if (spanElement.querySelector('input')) return;
             const originalContent = spanElement.innerHTML;
-            spanElement.innerHTML = `<div class="flex items-center gap-1"><input type="number" value="${insumo.cantidad}" class="w-24 text-center bg-white border border-indigo-300 rounded-md p-2"/><button class="p-2 text-green-600 rounded-md hover:bg-green-100"><svg class="h-6 w-6 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></button><button class="p-2 text-red-600 rounded-md hover:bg-red-100"><svg class="h-6 w-6 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.697a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button></div>`;
+            spanElement.innerHTML = `
+                <div class="flex items-center gap-1">
+                    <input type="number" value="${insumo.cantidad}" class="w-24 text-center bg-white border border-indigo-300 rounded-md p-2"/>
+                    <button data-action="save-qty" class="p-2 text-green-600 rounded-md hover:bg-green-100"><svg class="h-6 w-6 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></button>
+                    <button data-action="cancel-qty" class="p-2 text-red-600 rounded-md hover:bg-red-100"><svg class="h-6 w-6 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.697a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button>
+                </div>`;
+
             const input = spanElement.querySelector('input');
             const [saveBtn, cancelBtn] = spanElement.querySelectorAll('button');
-            input.focus(); input.select();
+            input.focus();
+            input.select();
+
+            const finalizeEdit = () => {
+                isEditing = false;
+                // El listener onSnapshot se encargará de re-renderizar la vista a su estado normal
+            };
+
             const saveChanges = async () => {
                 const nuevaCantidad = parseFloat(input.value);
                 if (!isNaN(nuevaCantidad) && nuevaCantidad >= 0) {
@@ -274,14 +281,26 @@
                         if (error.code === 'permission-denied') manejarErrorDePermisos(error);
                         else { console.error("Error al actualizar:", error); showModal("Error", "No se pudo actualizar."); }
                     }
-                } else spanElement.innerHTML = originalContent;
+                }
+                finalizeEdit();
             };
-            const cancelChanges = () => spanElement.innerHTML = originalContent;
+            
+            const cancelChanges = () => {
+                finalizeEdit();
+                renderizarListaInsumos(inventarioActual); // Forzar re-render para cancelar visualmente
+            };
+
             saveBtn.onclick = saveChanges;
             cancelBtn.onclick = cancelChanges;
             input.onkeydown = (e) => { if (e.key === 'Enter') saveChanges(); if (e.key === 'Escape') cancelChanges(); };
-            input.onblur = (e) => { if (!spanElement.contains(e.relatedTarget)) cancelChanges(); };
+            input.onblur = (e) => {
+                // Solo cancelar si el foco no va a los botones de guardar/cancelar
+                if (!spanElement.contains(e.relatedTarget)) {
+                    cancelChanges();
+                }
+            };
         }
+
 
         async function agregarInsumo() {
             if (!userId) return showModal('Error', 'No se ha podido identificar al usuario.');
@@ -310,7 +329,9 @@
                 refs.loadingState.classList.add('hidden');
                 refs.containerPrincipal.classList.remove('hidden');
                 inventarioActual = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderizarListaInsumos(inventarioActual);
+                if (!isEditing) { // Solo re-renderizar si no se está editando una cantidad
+                    renderizarListaInsumos(inventarioActual);
+                }
             }, (error) => {
                 refs.loadingState.classList.add('hidden');
                 if (error.code === 'permission-denied') manejarErrorDePermisos(error);
@@ -387,32 +408,26 @@
                 skipEmptyLines: true,
                 complete: async (results) => {
                     const insumosParaCargar = results.data.map(row => ({
-                        codigo: row.Código || '',
+                        codigo: row.Código || row.Codigo || '',
                         nombre: row.Producto || '',
                         cantidad: parseFloat(row.Cantidad) || 0,
                         unidad: row.Unidad || ''
                     })).filter(item => item.nombre && item.unidad);
 
-                    if (insumosParaCargar.length === 0) return showModal('Error', 'No se encontraron datos válidos en el archivo. Asegúrate que las columnas sean: Código, Producto, Cantidad, Unidad.');
+                    if (insumosParaCargar.length === 0) return showModal('Error', 'No se encontraron datos válidos. Columnas: Código, Producto, Cantidad, Unidad.');
                     
                     try {
                         const batch = writeBatch(db);
-                        insumosParaCargar.forEach(insumo => {
-                            const docRef = doc(collection(db, "insumos", userId, "items"));
-                            batch.set(docRef, { ...insumo, createdAt: new Date() });
-                        });
+                        insumosParaCargar.forEach(insumo => batch.set(doc(collection(db, "insumos", userId, "items")), { ...insumo, createdAt: new Date() }));
                         await batch.commit();
-                        showModal('Éxito', `${insumosParaCargar.length} insumos importados correctamente.`);
+                        showModal('Éxito', `${insumosParaCargar.length} insumos importados.`);
                         activarTab('control-stock');
                     } catch (error) {
                         if (error.code === 'permission-denied') manejarErrorDePermisos(error);
                         else { console.error("Error al importar:", error); showModal('Error', 'No se pudo importar el archivo.'); }
                     }
                 },
-                error: (error) => {
-                    console.error("Error al parsear CSV:", error);
-                    showModal('Error', 'Hubo un problema al leer el archivo CSV.');
-                }
+                error: (error) => showModal('Error', 'Hubo un problema al leer el archivo CSV.')
             });
         }
 

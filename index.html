@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Librería para leer archivos CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
         .modal-backdrop { transition: opacity 0.3s ease; }
@@ -22,7 +24,6 @@
             font-family: monospace; white-space: pre-wrap; word-wrap: break-word;
             font-size: 0.875rem; margin-top: 1rem;
         }
-        /* Estilos para las solapas */
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .tab-btn.active {
@@ -41,21 +42,14 @@
             <p class="text-gray-600 mt-2">Gestiona tu stock de forma organizada e inteligente.</p>
         </header>
 
-        <!-- Navegación de Solapas -->
         <div class="mb-6 border-b border-gray-200">
             <nav class="-mb-px flex space-x-6" aria-label="Tabs">
-                <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg text-gray-500 hover:text-indigo-600 hover:border-gray-300" data-tab="control-stock">
-                    Control de Stock
-                </button>
-                <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg text-gray-500 hover:text-indigo-600 hover:border-gray-300" data-tab="ingreso-insumos">
-                    Ingreso de Insumos
-                </button>
+                <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg" data-tab="control-stock">Control de Stock</button>
+                <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg" data-tab="ingreso-insumos">Ingreso de Insumos</button>
             </nav>
         </div>
 
-        <!-- Contenido de las Solapas -->
         <div id="tab-content-container">
-            <!-- Solapa 1: Control de Stock -->
             <div id="control-stock" class="tab-content">
                 <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
                      <div class="relative w-full md:w-1/3">
@@ -65,57 +59,47 @@
                         </div>
                     </div>
                     <div class="flex gap-2">
-                        <button id="descargar-excel-btn" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-300 flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
-                            Excel
-                        </button>
-                        <button id="analizar-btn" class="bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors duration-300 flex items-center gap-2">
-                            ✨ Analizar
-                        </button>
+                        <button id="descargar-excel-btn" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-300 flex items-center gap-2">Excel</button>
+                        <button id="analizar-btn" class="bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors duration-300 flex items-center gap-2">✨ Analizar</button>
                     </div>
                 </div>
-                <div id="loading-state" class="text-center py-8">
-                    <p class="text-gray-500">Cargando inventario...</p>
-                </div>
+                <div id="loading-state" class="text-center py-8"><p class="text-gray-500">Cargando inventario...</p></div>
                 <div id="container-principal">
                     <div id="empty-state" class="hidden text-center bg-white p-8 rounded-lg shadow-md">
                          <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
                         <h3 class="mt-2 text-lg font-medium text-gray-900">Inventario vacío</h3>
                         <p class="mt-1 text-sm text-gray-500">Ve a la solapa "Ingreso de Insumos" para empezar.</p>
                         <div class="mt-6">
-                            <button id="cargar-datos-btn" class="bg-green-600 text-white font-semibold py-2 px-5 rounded-lg hover:bg-green-700">
-                                Cargar Lista de Insumos Inicial
-                            </button>
+                            <button id="cargar-datos-btn" class="bg-green-600 text-white font-semibold py-2 px-5 rounded-lg hover:bg-green-700">Cargar Lista de Insumos Inicial</button>
                         </div>
                     </div>
                     <div id="lista-insumos" class="space-y-3"></div>
                 </div>
             </div>
 
-            <!-- Solapa 2: Ingreso de Insumos -->
             <div id="ingreso-insumos" class="tab-content">
-                 <div class="bg-white p-6 rounded-xl shadow-lg">
-                    <h2 class="text-2xl font-semibold mb-4">Agregar Nuevo Insumo</h2>
+                 <div class="bg-white p-6 rounded-xl shadow-lg mb-6">
+                    <h2 class="text-2xl font-semibold mb-4">Agregar Nuevo Insumo Manualmente</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="text" id="nombre-insumo" placeholder="Nombre del insumo" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <input type="text" id="codigo-insumo" placeholder="Código (Opcional)" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <input type="number" id="cantidad-inicial" placeholder="Cantidad" min="0" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <input type="text" id="unidad-insumo" placeholder="Unidad (ej: Lt, Kg)" class="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <button id="agregar-btn" class="md:col-span-2 bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-300 flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
-                            Agregar al Inventario
-                        </button>
+                        <input type="text" id="nombre-insumo" placeholder="Nombre del insumo" class="p-3 border border-gray-300 rounded-lg">
+                        <input type="text" id="codigo-insumo" placeholder="Código (Opcional)" class="p-3 border border-gray-300 rounded-lg">
+                        <input type="number" id="cantidad-inicial" placeholder="Cantidad" min="0" class="p-3 border border-gray-300 rounded-lg">
+                        <input type="text" id="unidad-insumo" placeholder="Unidad (ej: Lt, Kg)" class="p-3 border border-gray-300 rounded-lg">
+                        <button id="agregar-btn" class="md:col-span-2 bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 flex items-center justify-center">Agregar al Inventario</button>
                     </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-semibold mb-4">Importar desde Archivo CSV</h2>
+                    <p class="text-gray-600 mb-4">Sube un archivo `.csv` con las columnas: <code class="bg-gray-200 p-1 rounded">Código,Producto,Cantidad,Unidad</code>. La primera fila debe ser el encabezado.</p>
+                    <input type="file" id="csv-file-input" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+                    <button id="import-csv-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center">Importar Archivo</button>
                 </div>
             </div>
         </div>
         
-        <footer class="text-center mt-12 text-sm text-gray-500">
-            <p>ID de Sesión: <span id="user-id-display" class="font-mono bg-gray-200 p-1 rounded"></span></p>
-        </footer>
+        <footer class="text-center mt-12 text-sm text-gray-500"><p>ID de Sesión: <span id="user-id-display" class="font-mono bg-gray-200 p-1 rounded"></span></p></footer>
     </div>
 
-    <!-- Modal Genérico -->
     <div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center">
         <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop"></div>
         <div id="modal-content" class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-lg w-full z-10 modal-content transform scale-95">
@@ -130,11 +114,10 @@
         </div>
     </div>
 
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, increment, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, increment, writeBatch, enablePersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAsjMYndgto8apKjasCtD7Hsblw5f6DV8c",
@@ -146,36 +129,23 @@
             measurementId: "G-G7QXY50X7B"
         };
 
-        let app, db, auth, userId;
-        let inventarioActual = [];
-        let modalResolve;
+        let app, db, auth, userId, inventarioActual = [], modalResolve;
 
         const refs = {
-            nombreInsumo: document.getElementById('nombre-insumo'),
-            codigoInsumo: document.getElementById('codigo-insumo'),
-            cantidadInicial: document.getElementById('cantidad-inicial'),
-            unidadInsumo: document.getElementById('unidad-insumo'),
-            agregarBtn: document.getElementById('agregar-btn'),
-            containerPrincipal: document.getElementById('container-principal'),
-            listaInsumos: document.getElementById('lista-insumos'),
-            loadingState: document.getElementById('loading-state'),
-            emptyState: document.getElementById('empty-state'),
-            cargarDatosBtn: document.getElementById('cargar-datos-btn'),
-            userIdDisplay: document.getElementById('user-id-display'),
-            analizarBtn: document.getElementById('analizar-btn'),
-            descargarExcelBtn: document.getElementById('descargar-excel-btn'),
-            searchInput: document.getElementById('search-input'),
-            tabs: document.querySelectorAll('.tab-btn'),
-            tabContents: document.querySelectorAll('.tab-content'),
+            nombreInsumo: document.getElementById('nombre-insumo'), codigoInsumo: document.getElementById('codigo-insumo'),
+            cantidadInicial: document.getElementById('cantidad-inicial'), unidadInsumo: document.getElementById('unidad-insumo'),
+            agregarBtn: document.getElementById('agregar-btn'), containerPrincipal: document.getElementById('container-principal'),
+            listaInsumos: document.getElementById('lista-insumos'), loadingState: document.getElementById('loading-state'),
+            emptyState: document.getElementById('empty-state'), cargarDatosBtn: document.getElementById('cargar-datos-btn'),
+            userIdDisplay: document.getElementById('user-id-display'), analizarBtn: document.getElementById('analizar-btn'),
+            descargarExcelBtn: document.getElementById('descargar-excel-btn'), searchInput: document.getElementById('search-input'),
+            tabs: document.querySelectorAll('.tab-btn'), tabContents: document.querySelectorAll('.tab-content'),
+            csvFileInput: document.getElementById('csv-file-input'), importCsvBtn: document.getElementById('import-csv-btn'),
             modal: {
-                el: document.getElementById('modal'),
-                backdrop: document.getElementById('modal-backdrop'),
-                content: document.getElementById('modal-content'),
-                title: document.getElementById('modal-title'),
-                body: document.getElementById('modal-body'),
-                cancelBtn: document.getElementById('modal-cancel-btn'),
-                saveBtn: document.getElementById('modal-save-btn'),
-                confirmBtn: document.getElementById('modal-confirm-btn'),
+                el: document.getElementById('modal'), backdrop: document.getElementById('modal-backdrop'),
+                content: document.getElementById('modal-content'), title: document.getElementById('modal-title'),
+                body: document.getElementById('modal-body'), cancelBtn: document.getElementById('modal-cancel-btn'),
+                saveBtn: document.getElementById('modal-save-btn'), confirmBtn: document.getElementById('modal-confirm-btn'),
                 okBtn: document.getElementById('modal-ok-btn'),
             }
         };
@@ -185,6 +155,14 @@
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
+                // Habilitar persistencia offline
+                await enablePersistence(db).catch((err) => {
+                    if (err.code == 'failed-precondition') {
+                        console.warn("Persistencia offline no pudo ser habilitada, múltiples solapas abiertas?");
+                    } else if (err.code == 'unimplemented') {
+                        console.warn("El navegador actual no soporta persistencia offline.");
+                    }
+                });
 
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
@@ -192,21 +170,19 @@
                         refs.userIdDisplay.textContent = userId;
                         configurarEventListeners();
                         escucharCambiosEnInsumos();
-                        activarTab('control-stock'); // Activar la primera solapa por defecto
-                    } else {
-                        await signInAnonymously(auth);
-                    }
+                        activarTab('control-stock');
+                    } else await signInAnonymously(auth);
                 });
             } catch (error) {
                 console.error("Error inicializando Firebase:", error);
                 refs.loadingState.classList.add('hidden');
-                refs.containerPrincipal.innerHTML = `<p class="text-red-500 text-center">Error al conectar con la base de datos. Revisa la consola.</p>`;
+                refs.containerPrincipal.innerHTML = `<p class="text-red-500 text-center">Error al conectar. Revisa la consola.</p>`;
             }
         }
 
         function activarTab(tabId) {
-            refs.tabContents.forEach(content => content.classList.remove('active'));
-            refs.tabs.forEach(tab => tab.classList.remove('active'));
+            refs.tabContents.forEach(c => c.classList.remove('active'));
+            refs.tabs.forEach(t => t.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
         }
@@ -230,34 +206,28 @@
         }
 
         function manejarErrorDePermisos(error) {
-            console.error("Error de permisos en Firestore:", error);
-            const titulo = "Error de Permisos en la Base de Datos";
-            const cuerpo = `<p class="mb-3">La aplicación no tiene permiso para leer o escribir en la base de datos. Esto se debe a que las <strong>Reglas de Seguridad</strong> de tu proyecto en Firebase no están configuradas correctamente.</p><p class="mb-2">Por favor, ve a la sección <strong>Firestore Database > Reglas</strong> en tu Consola de Firebase y usa estas reglas:</p><div class="code-block">rules_version = '2';<br>service cloud.firestore {<br>&nbsp;&nbsp;match /databases/{database}/documents {<br>&nbsp;&nbsp;&nbsp;&nbsp;match /insumos/{userId}/{document=**} {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allow read, write: if request.auth != null && request.auth.uid == userId;<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;}<br>}</div>`;
-            showModal(titulo, cuerpo);
+            console.error("Error de permisos:", error);
+            showModal("Error de Permisos", `<p class="mb-3">La app no tiene permiso para acceder a la base de datos. Esto usualmente se debe a las <strong>Reglas de Seguridad</strong> de tu proyecto en Firebase.</p><p class="mb-2">Por favor, ve a <strong>Firestore Database > Reglas</strong> en tu Consola de Firebase y usa estas reglas:</p><div class="code-block">rules_version = '2';<br>service cloud.firestore {<br>&nbsp;&nbsp;match /databases/{database}/documents {<br>&nbsp;&nbsp;&nbsp;&nbsp;match /insumos/{userId}/{document=**} {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allow read, write: if request.auth != null && request.auth.uid == userId;<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;}<br>}</div>`);
         }
 
         function configurarEventListeners() {
-            refs.tabs.forEach(tab => {
-                tab.addEventListener('click', () => activarTab(tab.dataset.tab));
-            });
+            refs.tabs.forEach(tab => tab.addEventListener('click', () => activarTab(tab.dataset.tab)));
             refs.agregarBtn.addEventListener('click', agregarInsumo);
             refs.analizarBtn.addEventListener('click', analizarInventarioConGemini);
             refs.cargarDatosBtn.addEventListener('click', cargarDatosIniciales);
             refs.descargarExcelBtn.addEventListener('click', descargarExcel);
+            refs.importCsvBtn.addEventListener('click', handleCsvImport);
             refs.searchInput.addEventListener('input', () => renderizarListaInsumos(inventarioActual));
-
             refs.listaInsumos.addEventListener('click', handleListaInsumosClick);
-            
             refs.modal.backdrop.addEventListener('click', () => hideModal(false));
             refs.modal.cancelBtn.addEventListener('click', () => hideModal(false));
             refs.modal.confirmBtn.addEventListener('click', () => hideModal(true));
             refs.modal.okBtn.addEventListener('click', () => hideModal(true));
         }
-
+        
         async function handleListaInsumosClick(e) {
-            const target = e.target;
-            const button = target.closest('button');
-            const span = target.closest('span[data-action="edit-quantity"]');
+            const button = e.target.closest('button');
+            const span = e.target.closest('span[data-action="edit-quantity"]');
 
             if (button) {
                 const insumoId = button.dataset.id;
@@ -268,8 +238,7 @@
                     if (action === 'restar') await updateDoc(docRef, { cantidad: increment(-1) });
                     else if (action === 'sumar') await updateDoc(docRef, { cantidad: increment(1) });
                     else if (action === 'eliminar') {
-                        const confirmed = await showModal('Confirmar Eliminación', '¿Estás seguro?', 'confirm');
-                        if (confirmed) await deleteDoc(docRef);
+                        if (await showModal('Confirmar Eliminación', '¿Estás seguro?', 'confirm')) await deleteDoc(docRef);
                     } else if (action === 'editar') {
                         const insumo = inventarioActual.find(item => item.id === insumoId);
                         if (insumo) mostrarModalEdicion(insumo);
@@ -281,35 +250,37 @@
             } else if (span) {
                 const insumoId = span.dataset.id;
                 const insumo = inventarioActual.find(item => item.id === insumoId);
-                if (insumo) editarCantidadDirectamente(span, insumo);
+                if (insumo) {
+                    renderizarListaInsumos(inventarioActual);
+                    const newSpanElement = document.querySelector(`span[data-id="${insumoId}"]`);
+                    if (newSpanElement) editarCantidadDirectamente(newSpanElement, insumo);
+                }
             }
         }
-
+        
         function editarCantidadDirectamente(spanElement, insumo) {
-            spanElement.innerHTML = `<input type="number" value="${insumo.cantidad}" class="w-24 text-center bg-gray-100 border rounded-md"/>`;
+            if (spanElement.querySelector('input')) return;
+            const originalContent = spanElement.innerHTML;
+            spanElement.innerHTML = `<div class="flex items-center gap-1"><input type="number" value="${insumo.cantidad}" class="w-24 text-center bg-white border border-indigo-300 rounded-md p-2"/><button class="p-2 text-green-600 rounded-md hover:bg-green-100"><svg class="h-6 w-6 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></button><button class="p-2 text-red-600 rounded-md hover:bg-red-100"><svg class="h-6 w-6 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.697a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button></div>`;
             const input = spanElement.querySelector('input');
-            input.focus();
-            input.select();
-
+            const [saveBtn, cancelBtn] = spanElement.querySelectorAll('button');
+            input.focus(); input.select();
             const saveChanges = async () => {
                 const nuevaCantidad = parseFloat(input.value);
                 if (!isNaN(nuevaCantidad) && nuevaCantidad >= 0) {
                     try {
-                        const docRef = doc(db, "insumos", userId, "items", insumo.id);
-                        await updateDoc(docRef, { cantidad: nuevaCantidad });
+                        await updateDoc(doc(db, "insumos", userId, "items", insumo.id), { cantidad: nuevaCantidad });
                     } catch (error) {
                         if (error.code === 'permission-denied') manejarErrorDePermisos(error);
-                        else { console.error("Error al actualizar cantidad:", error); showModal("Error", "No se pudo actualizar la cantidad."); }
+                        else { console.error("Error al actualizar:", error); showModal("Error", "No se pudo actualizar."); }
                     }
-                }
-                // La actualización se verá reflejada por el listener de onSnapshot
+                } else spanElement.innerHTML = originalContent;
             };
-
-            input.addEventListener('blur', saveChanges);
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') input.blur();
-                if (e.key === 'Escape') renderizarListaInsumos(inventarioActual); // Re-render to cancel
-            });
+            const cancelChanges = () => spanElement.innerHTML = originalContent;
+            saveBtn.onclick = saveChanges;
+            cancelBtn.onclick = cancelChanges;
+            input.onkeydown = (e) => { if (e.key === 'Enter') saveChanges(); if (e.key === 'Escape') cancelChanges(); };
+            input.onblur = (e) => { if (!spanElement.contains(e.relatedTarget)) cancelChanges(); };
         }
 
         async function agregarInsumo() {
@@ -318,13 +289,11 @@
             const codigo = refs.codigoInsumo.value.trim();
             const cantidad = parseFloat(refs.cantidadInicial.value);
             const unidad = refs.unidadInsumo.value.trim();
-
             if (!nombre || !unidad) return showModal('Campos Vacíos', 'Nombre y unidad son obligatorios.');
             if (isNaN(cantidad) || cantidad < 0) return showModal('Cantidad Inválida', 'Ingresa una cantidad válida.');
-
             try {
                 await addDoc(collection(db, "insumos", userId, "items"), { nombre, codigo: codigo || '', cantidad, unidad, createdAt: new Date() });
-                [refs.nombreInsumo, refs.codigoInsumo, refs.cantidadInicial, refs.unidadInsumo].forEach(input => input.value = '');
+                [refs.nombreInsumo, refs.codigoInsumo, refs.cantidadInicial, refs.unidadInsumo].forEach(i => i.value = '');
                 refs.nombreInsumo.focus();
                 showModal('Éxito', 'Insumo agregado correctamente.');
                 activarTab('control-stock');
@@ -351,13 +320,9 @@
 
         function renderizarListaInsumos(insumos) {
             const searchTerm = refs.searchInput.value.toLowerCase();
-            const filteredInsumos = insumos.filter(item => 
-                item.nombre.toLowerCase().includes(searchTerm) || 
-                (item.codigo && item.codigo.toLowerCase().includes(searchTerm))
-            ).sort((a, b) => a.nombre.localeCompare(b.nombre));
-
+            const filteredInsumos = insumos.filter(item => item.nombre.toLowerCase().includes(searchTerm) || (item.codigo && item.codigo.toLowerCase().includes(searchTerm))).sort((a, b) => a.nombre.localeCompare(b.nombre));
             if (filteredInsumos.length === 0 && insumos.length > 0) {
-                 refs.listaInsumos.innerHTML = `<p class="text-center text-gray-500 py-4">No se encontraron insumos con el término "${refs.searchInput.value}".</p>`;
+                 refs.listaInsumos.innerHTML = `<p class="text-center text-gray-500 py-4">No se encontraron insumos para "${refs.searchInput.value}".</p>`;
             } else if (insumos.length === 0) {
                 refs.emptyState.classList.remove('hidden');
                 refs.listaInsumos.classList.add('hidden');
@@ -366,25 +331,7 @@
                 refs.listaInsumos.classList.remove('hidden');
                 refs.listaInsumos.innerHTML = filteredInsumos.map(insumo => {
                     const stockColorClass = insumo.cantidad <= 0 ? 'text-red-600' : (insumo.cantidad <= 10 ? 'text-yellow-600' : 'text-green-600');
-                    return `
-                        <div class="bg-white p-4 rounded-lg shadow-sm flex items-center justify-between gap-4">
-                            <div class="flex-grow">
-                                <p class="font-semibold text-lg">${insumo.nombre}</p>
-                                <p class="text-sm text-gray-500 font-mono">Código: ${insumo.codigo || 'N/A'}</p>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <span data-id="${insumo.id}" data-action="edit-quantity" class="font-bold text-2xl ${stockColorClass} min-w-[100px] text-center p-2 rounded-md hover:bg-gray-100 cursor-pointer">${insumo.cantidad} ${insumo.unidad}</span>
-                                <div class="flex flex-col sm:flex-row gap-2">
-                                    <button data-id="${insumo.id}" data-action="restar" class="bg-red-100 text-red-700 h-10 w-10 rounded-full flex items-center justify-center font-bold text-2xl hover:bg-red-200">-</button>
-                                    <button data-id="${insumo.id}" data-action="sumar" class="bg-green-100 text-green-700 h-10 w-10 rounded-full flex items-center justify-center font-bold text-xl hover:bg-green-200">+</button>
-                                </div>
-                            </div>
-                            <div class="flex gap-2">
-                                <button data-id="${insumo.id}" data-action="editar" class="text-gray-400 hover:text-blue-500"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z" /></svg></button>
-                                <button data-id="${insumo.id}" data-action="eliminar" class="text-gray-400 hover:text-red-500"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                            </div>
-                        </div>
-                    `;
+                    return `<div class="bg-white p-4 rounded-lg shadow-sm flex items-center justify-between gap-4"><div class="flex-grow"><p class="font-semibold text-lg">${insumo.nombre}</p><p class="text-sm text-gray-500 font-mono">Código: ${insumo.codigo || 'N/A'}</p></div><div class="flex items-center gap-3"><span data-id="${insumo.id}" data-action="edit-quantity" class="font-bold text-2xl ${stockColorClass} min-w-[100px] text-center p-2 rounded-md hover:bg-gray-100 cursor-pointer">${insumo.cantidad} ${insumo.unidad}</span><div class="flex flex-col sm:flex-row gap-2"><button data-id="${insumo.id}" data-action="restar" class="bg-red-100 text-red-700 h-10 w-10 rounded-full flex items-center justify-center font-bold text-2xl hover:bg-red-200">-</button><button data-id="${insumo.id}" data-action="sumar" class="bg-green-100 text-green-700 h-10 w-10 rounded-full flex items-center justify-center font-bold text-xl hover:bg-green-200">+</button></div></div><div class="flex gap-2"><button data-id="${insumo.id}" data-action="editar" class="text-gray-400 hover:text-blue-500"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z" /></svg></button><button data-id="${insumo.id}" data-action="eliminar" class="text-gray-400 hover:text-red-500"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div></div>`;
                 }).join('');
             }
         }
@@ -392,7 +339,6 @@
         async function mostrarModalEdicion(insumo) {
             const formHTML = `<div class="space-y-4"><div><label for="edit-nombre" class="block text-sm font-medium text-gray-700">Nombre</label><input type="text" id="edit-nombre" value="${insumo.nombre}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></div><div><label for="edit-codigo" class="block text-sm font-medium text-gray-700">Código</label><input type="text" id="edit-codigo" value="${insumo.codigo || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></div><div><label for="edit-unidad" class="block text-sm font-medium text-gray-700">Unidad</label><input type="text" id="edit-unidad" value="${insumo.unidad}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></div></div>`;
             await showModal('Editar Insumo', formHTML, 'edit');
-            
             refs.modal.saveBtn.onclick = async () => {
                 const nuevoNombre = document.getElementById('edit-nombre').value.trim();
                 const nuevoCodigo = document.getElementById('edit-codigo').value.trim();
@@ -430,6 +376,44 @@
                 if (error.code === 'permission-denied') manejarErrorDePermisos(error);
                 else { console.error("Error al cargar datos:", error); showModal('Error', 'No se pudieron cargar los datos iniciales.'); }
             }
+        }
+
+        async function handleCsvImport() {
+            if (!refs.csvFileInput.files.length) return showModal('Error', 'Por favor, selecciona un archivo CSV primero.');
+            const file = refs.csvFileInput.files[0];
+            
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: async (results) => {
+                    const insumosParaCargar = results.data.map(row => ({
+                        codigo: row.Código || '',
+                        nombre: row.Producto || '',
+                        cantidad: parseFloat(row.Cantidad) || 0,
+                        unidad: row.Unidad || ''
+                    })).filter(item => item.nombre && item.unidad);
+
+                    if (insumosParaCargar.length === 0) return showModal('Error', 'No se encontraron datos válidos en el archivo. Asegúrate que las columnas sean: Código, Producto, Cantidad, Unidad.');
+                    
+                    try {
+                        const batch = writeBatch(db);
+                        insumosParaCargar.forEach(insumo => {
+                            const docRef = doc(collection(db, "insumos", userId, "items"));
+                            batch.set(docRef, { ...insumo, createdAt: new Date() });
+                        });
+                        await batch.commit();
+                        showModal('Éxito', `${insumosParaCargar.length} insumos importados correctamente.`);
+                        activarTab('control-stock');
+                    } catch (error) {
+                        if (error.code === 'permission-denied') manejarErrorDePermisos(error);
+                        else { console.error("Error al importar:", error); showModal('Error', 'No se pudo importar el archivo.'); }
+                    }
+                },
+                error: (error) => {
+                    console.error("Error al parsear CSV:", error);
+                    showModal('Error', 'Hubo un problema al leer el archivo CSV.');
+                }
+            });
         }
 
         async function analizarInventarioConGemini() {

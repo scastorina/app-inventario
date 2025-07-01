@@ -117,7 +117,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // FIX: Changed 'enablePersistence' to 'enableIndexedDbPersistence'
         import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, increment, writeBatch, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -156,7 +155,6 @@
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                // FIX: Changed 'enablePersistence' to 'enableIndexedDbPersistence'
                 await enableIndexedDbPersistence(db).catch((err) => {
                     if (err.code == 'failed-precondition') console.warn("Persistencia offline no habilitada, múltiples solapas abiertas?");
                     else if (err.code == 'unimplemented') console.warn("El navegador no soporta persistencia offline.");
@@ -245,7 +243,7 @@
                     if (error.code === 'permission-denied') manejarErrorDePermisos(error);
                     else { console.error("Error:", error); showModal("Error", "No se pudo realizar la operación."); }
                 }
-            } else if (span && !isEditing) { // Solo permitir editar si no hay otra edición en curso
+            } else if (span && !isEditing) {
                 isEditing = true;
                 const insumoId = span.dataset.id;
                 const insumo = inventarioActual.find(item => item.id === insumoId);
@@ -269,7 +267,6 @@
 
             const finalizeEdit = () => {
                 isEditing = false;
-                // El listener onSnapshot se encargará de re-renderizar la vista a su estado normal
             };
 
             const saveChanges = async () => {
@@ -287,20 +284,18 @@
             
             const cancelChanges = () => {
                 finalizeEdit();
-                renderizarListaInsumos(inventarioActual); // Forzar re-render para cancelar visualmente
+                renderizarListaInsumos(inventarioActual);
             };
 
             saveBtn.onclick = saveChanges;
             cancelBtn.onclick = cancelChanges;
             input.onkeydown = (e) => { if (e.key === 'Enter') saveChanges(); if (e.key === 'Escape') cancelChanges(); };
             input.onblur = (e) => {
-                // Solo cancelar si el foco no va a los botones de guardar/cancelar
                 if (!spanElement.contains(e.relatedTarget)) {
                     cancelChanges();
                 }
             };
         }
-
 
         async function agregarInsumo() {
             if (!userId) return showModal('Error', 'No se ha podido identificar al usuario.');
@@ -329,7 +324,7 @@
                 refs.loadingState.classList.add('hidden');
                 refs.containerPrincipal.classList.remove('hidden');
                 inventarioActual = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (!isEditing) { // Solo re-renderizar si no se está editando una cantidad
+                if (!isEditing) {
                     renderizarListaInsumos(inventarioActual);
                 }
             }, (error) => {
@@ -407,20 +402,42 @@
                 header: true,
                 skipEmptyLines: true,
                 complete: async (results) => {
-                    const insumosParaCargar = results.data.map(row => ({
-                        codigo: row.Código || row.Codigo || '',
-                        nombre: row.Producto || '',
-                        cantidad: parseFloat(row.Cantidad) || 0,
-                        unidad: row.Unidad || ''
-                    })).filter(item => item.nombre && item.unidad);
+                    // FIX: Lógica anti-duplicados
+                    let nuevos = 0, actualizados = 0;
+                    const batch = writeBatch(db);
 
-                    if (insumosParaCargar.length === 0) return showModal('Error', 'No se encontraron datos válidos. Columnas: Código, Producto, Cantidad, Unidad.');
+                    for (const row of results.data) {
+                        const nombre = (row.Producto || '').trim();
+                        const codigo = (row.Código || row.Codigo || '').trim();
+                        const cantidad = parseFloat(row.Cantidad);
+                        const unidad = (row.Unidad || '').trim();
+
+                        if (!nombre || !unidad || isNaN(cantidad)) continue;
+
+                        // Buscar si existe por código (si lo tiene) o por nombre
+                        const itemExistente = inventarioActual.find(item => 
+                            (codigo && item.codigo && item.codigo.toLowerCase() === codigo.toLowerCase()) || 
+                            (!codigo && item.nombre.toLowerCase() === nombre.toLowerCase())
+                        );
+
+                        if (itemExistente) {
+                            // Actualizar
+                            const docRef = doc(db, "insumos", userId, "items", itemExistente.id);
+                            batch.update(docRef, { cantidad });
+                            actualizados++;
+                        } else {
+                            // Crear nuevo
+                            const docRef = doc(collection(db, "insumos", userId, "items"));
+                            batch.set(docRef, { nombre, codigo, cantidad, unidad, createdAt: new Date() });
+                            nuevos++;
+                        }
+                    }
                     
+                    if (nuevos === 0 && actualizados === 0) return showModal('Aviso', 'No se encontraron datos válidos para importar. Revisa las columnas: Código, Producto, Cantidad, Unidad.');
+
                     try {
-                        const batch = writeBatch(db);
-                        insumosParaCargar.forEach(insumo => batch.set(doc(collection(db, "insumos", userId, "items")), { ...insumo, createdAt: new Date() }));
                         await batch.commit();
-                        showModal('Éxito', `${insumosParaCargar.length} insumos importados.`);
+                        showModal('Importación Completa', `${actualizados} insumos actualizados y ${nuevos} insumos agregados.`);
                         activarTab('control-stock');
                     } catch (error) {
                         if (error.code === 'permission-denied') manejarErrorDePermisos(error);

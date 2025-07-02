@@ -176,6 +176,7 @@
                     appView.classList.remove('hidden');
                     
                     renderizarUI();
+                    escucharCambiosEnInsumos(); // FIX: Llamada a cargar el inventario
                 } else {
                     userId = null;
                     userRole = null;
@@ -542,13 +543,14 @@
             errorEl.textContent = '';
             
             try {
-                // Esta es una solución alternativa para crear usuarios desde el cliente.
-                // Es crucial que las reglas de seguridad de Firestore impidan que usuarios no-admin
-                // se asignen a sí mismos el rol de admin.
+                // IMPORTANTE: Esta es una solución alternativa para crear usuarios desde el cliente.
+                // En una aplicación de producción real, esto DEBE hacerse a través de una Cloud Function
+                // para no exponer la lógica de creación de usuarios en el lado del cliente.
                 const tempApp = initializeApp(firebaseConfig, `creator-${Date.now()}`);
                 const tempAuth = getAuth(tempApp);
                 const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
                 
+                // Guardar el rol del usuario en Firestore
                 await setDoc(doc(db, "users", userCredential.user.uid), {
                     email: userCredential.user.email,
                     role: "user"

@@ -31,6 +31,15 @@
             color: #4f46e5;
             background-color: #eef2ff;
         }
+        /* Estilos para validación */
+        .validation-message {
+            font-size: 0.875rem;
+            color: #ef4444; /* red-500 */
+            min-height: 1.25rem;
+        }
+        .input-error {
+            border-color: #ef4444;
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -80,12 +89,26 @@
             <div id="ingreso-insumos" class="tab-content">
                  <div class="bg-white p-6 rounded-xl shadow-lg mb-6">
                     <h2 class="text-2xl font-semibold mb-4">Agregar Nuevo Insumo Manualmente</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="text" id="nombre-insumo" placeholder="Nombre del insumo" class="p-3 border border-gray-300 rounded-lg">
-                        <input type="text" id="codigo-insumo" placeholder="Código (Opcional)" class="p-3 border border-gray-300 rounded-lg">
-                        <input type="number" id="cantidad-inicial" placeholder="Cantidad" min="0" class="p-3 border border-gray-300 rounded-lg">
-                        <input type="text" id="unidad-insumo" placeholder="Unidad (ej: Lt, Kg)" class="p-3 border border-gray-300 rounded-lg">
-                        <button id="agregar-btn" class="md:col-span-2 bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 flex items-center justify-center">Agregar al Inventario</button>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                        <div>
+                            <input type="text" id="nombre-insumo" placeholder="Nombre del insumo" class="p-3 w-full border border-gray-300 rounded-lg">
+                            <p id="nombre-insumo-validation" class="validation-message"></p>
+                        </div>
+                        <div>
+                            <input type="text" id="codigo-insumo" placeholder="Código (Opcional)" class="p-3 w-full border border-gray-300 rounded-lg">
+                            <p id="codigo-insumo-validation" class="validation-message"></p>
+                        </div>
+                        <div>
+                            <input type="number" id="cantidad-inicial" placeholder="Cantidad" min="0" class="p-3 w-full border border-gray-300 rounded-lg">
+                            <p id="cantidad-inicial-validation" class="validation-message"></p>
+                        </div>
+                        <div>
+                            <input type="text" id="unidad-insumo" placeholder="Unidad (ej: Lt, Kg)" class="p-3 w-full border border-gray-300 rounded-lg">
+                            <p id="unidad-insumo-validation" class="validation-message"></p>
+                        </div>
+                        <div class="md:col-span-2">
+                            <button id="agregar-btn" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed">Agregar al Inventario</button>
+                        </div>
                     </div>
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-lg">
@@ -134,6 +157,8 @@
         const refs = {
             nombreInsumo: document.getElementById('nombre-insumo'), codigoInsumo: document.getElementById('codigo-insumo'),
             cantidadInicial: document.getElementById('cantidad-inicial'), unidadInsumo: document.getElementById('unidad-insumo'),
+            nombreInsumoValidation: document.getElementById('nombre-insumo-validation'), cantidadInicialValidation: document.getElementById('cantidad-inicial-validation'),
+            unidadInsumoValidation: document.getElementById('unidad-insumo-validation'),
             agregarBtn: document.getElementById('agregar-btn'), containerPrincipal: document.getElementById('container-principal'),
             listaInsumos: document.getElementById('lista-insumos'), loadingState: document.getElementById('loading-state'),
             emptyState: document.getElementById('empty-state'), cargarDatosBtn: document.getElementById('cargar-datos-btn'),
@@ -205,6 +230,46 @@
             console.error("Error de permisos:", error);
             showModal("Error de Permisos", `<p class="mb-3">La app no tiene permiso para acceder a la base de datos. Esto se debe a que las <strong>Reglas de Seguridad</strong> de tu proyecto en Firebase no están configuradas correctamente.</p><p class="mb-2">Por favor, ve a <strong>Firestore Database > Reglas</strong> en tu Consola de Firebase y usa estas reglas:</p><div class="code-block">rules_version = '2';<br>service cloud.firestore {<br>&nbsp;&nbsp;match /databases/{database}/documents {<br>&nbsp;&nbsp;&nbsp;&nbsp;match /insumos/{userId}/{document=**} {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allow read, write: if request.auth != null && request.auth.uid == userId;<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;}<br>}</div>`);
         }
+        
+        // --- NUEVA LÓGICA DE VALIDACIÓN ---
+        function validarFormularioIngreso() {
+            let esValido = true;
+            
+            // Validar Nombre
+            if (refs.nombreInsumo.value.trim() === '') {
+                refs.nombreInsumoValidation.textContent = 'El nombre es obligatorio.';
+                refs.nombreInsumo.classList.add('input-error');
+                esValido = false;
+            } else {
+                refs.nombreInsumoValidation.textContent = '';
+                refs.nombreInsumo.classList.remove('input-error');
+            }
+
+            // Validar Cantidad
+            const cantidad = parseFloat(refs.cantidadInicial.value);
+            if (isNaN(cantidad) || cantidad < 0) {
+                 refs.cantidadInicialValidation.textContent = 'Debe ser un número positivo.';
+                 refs.cantidadInicial.classList.add('input-error');
+                 esValido = false;
+            } else {
+                refs.cantidadInicialValidation.textContent = '';
+                refs.cantidadInicial.classList.remove('input-error');
+            }
+
+            // Validar Unidad
+            if (refs.unidadInsumo.value.trim() === '') {
+                refs.unidadInsumoValidation.textContent = 'La unidad es obligatoria.';
+                refs.unidadInsumo.classList.add('input-error');
+                esValido = false;
+            } else {
+                refs.unidadInsumoValidation.textContent = '';
+                refs.unidadInsumo.classList.remove('input-error');
+            }
+
+            refs.agregarBtn.disabled = !esValido;
+            return esValido;
+        }
+
 
         function configurarEventListeners() {
             refs.tabs.forEach(tab => tab.addEventListener('click', () => activarTab(tab.dataset.tab)));
@@ -215,6 +280,12 @@
             refs.importCsvBtn.addEventListener('click', handleCsvImport);
             refs.searchInput.addEventListener('input', () => renderizarListaInsumos(inventarioActual));
             refs.listaInsumos.addEventListener('click', handleListaInsumosClick);
+
+            // Listeners para validación en tiempo real
+            [refs.nombreInsumo, refs.cantidadInicial, refs.unidadInsumo].forEach(input => {
+                input.addEventListener('input', validarFormularioIngreso);
+            });
+
             refs.modal.backdrop.addEventListener('click', () => hideModal(false));
             refs.modal.cancelBtn.addEventListener('click', () => hideModal(false));
             refs.modal.confirmBtn.addEventListener('click', () => hideModal(true));
@@ -265,9 +336,7 @@
             input.focus();
             input.select();
 
-            const finalizeEdit = () => {
-                isEditing = false;
-            };
+            const finalizeEdit = () => { isEditing = false; };
 
             const saveChanges = async () => {
                 const nuevaCantidad = parseFloat(input.value);
@@ -290,25 +359,22 @@
             saveBtn.onclick = saveChanges;
             cancelBtn.onclick = cancelChanges;
             input.onkeydown = (e) => { if (e.key === 'Enter') saveChanges(); if (e.key === 'Escape') cancelChanges(); };
-            input.onblur = (e) => {
-                if (!spanElement.contains(e.relatedTarget)) {
-                    cancelChanges();
-                }
-            };
+            input.onblur = (e) => { if (!spanElement.contains(e.relatedTarget)) cancelChanges(); };
         }
 
         async function agregarInsumo() {
+            if (!validarFormularioIngreso()) return;
             if (!userId) return showModal('Error', 'No se ha podido identificar al usuario.');
+            
             const nombre = refs.nombreInsumo.value.trim();
             const codigo = refs.codigoInsumo.value.trim();
             const cantidad = parseFloat(refs.cantidadInicial.value);
             const unidad = refs.unidadInsumo.value.trim();
-            if (!nombre || !unidad) return showModal('Campos Vacíos', 'Nombre y unidad son obligatorios.');
-            if (isNaN(cantidad) || cantidad < 0) return showModal('Cantidad Inválida', 'Ingresa una cantidad válida.');
+            
             try {
                 await addDoc(collection(db, "insumos", userId, "items"), { nombre, codigo: codigo || '', cantidad, unidad, createdAt: new Date() });
                 [refs.nombreInsumo, refs.codigoInsumo, refs.cantidadInicial, refs.unidadInsumo].forEach(i => i.value = '');
-                refs.nombreInsumo.focus();
+                validarFormularioIngreso(); // Resetear validación
                 showModal('Éxito', 'Insumo agregado correctamente.');
                 activarTab('control-stock');
             } catch (error) {
@@ -402,7 +468,6 @@
                 header: true,
                 skipEmptyLines: true,
                 complete: async (results) => {
-                    // FIX: Lógica anti-duplicados
                     let nuevos = 0, actualizados = 0;
                     const batch = writeBatch(db);
 
@@ -414,19 +479,16 @@
 
                         if (!nombre || !unidad || isNaN(cantidad)) continue;
 
-                        // Buscar si existe por código (si lo tiene) o por nombre
                         const itemExistente = inventarioActual.find(item => 
                             (codigo && item.codigo && item.codigo.toLowerCase() === codigo.toLowerCase()) || 
                             (!codigo && item.nombre.toLowerCase() === nombre.toLowerCase())
                         );
 
                         if (itemExistente) {
-                            // Actualizar
                             const docRef = doc(db, "insumos", userId, "items", itemExistente.id);
                             batch.update(docRef, { cantidad });
                             actualizados++;
                         } else {
-                            // Crear nuevo
                             const docRef = doc(collection(db, "insumos", userId, "items"));
                             batch.set(docRef, { nombre, codigo, cantidad, unidad, createdAt: new Date() });
                             nuevos++;

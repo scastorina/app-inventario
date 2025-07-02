@@ -18,20 +18,15 @@
             color: #4f46e5;
             background-color: #eef2ff;
         }
-        .validation-message {
-            font-size: 0.875rem;
-            color: #ef4444;
-            min-height: 1.25rem;
-        }
-        .input-error {
-            border-color: #ef4444 !important;
-        }
+        .validation-message { font-size: 0.875rem; color: #ef4444; min-height: 1.25rem; }
+        .input-error { border-color: #ef4444 !important; }
+        .code-block { background-color: #f3f4f6; border-radius: 0.5rem; padding: 1rem; font-family: monospace; white-space: pre-wrap; font-size: 0.875rem; margin-top: 1rem; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
 
     <!-- Vista de Autenticación -->
-    <div id="auth-view" class="min-h-screen flex items-center justify-center">
+    <div id="auth-view" class="min-h-screen flex items-center justify-center p-4">
         <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-lg">
             <h2 class="text-2xl font-bold text-center mb-6">Iniciar Sesión</h2>
             <div class="space-y-4">
@@ -62,31 +57,69 @@
             </header>
 
             <div class="mb-6 border-b border-gray-200">
-                <nav id="tabs-nav" class="-mb-px flex space-x-6" aria-label="Tabs"></nav>
+                <nav id="tabs-nav" class="-mb-px flex space-x-6" aria-label="Tabs">
+                    <!-- Las solapas se generan dinámicamente aquí -->
+                </nav>
             </div>
 
             <div id="tab-content-container">
                 <div id="control-stock" class="tab-content">
-                    <!-- Contenido de Control de Stock -->
+                    <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
+                        <div class="relative w-full md:w-1/3"><input type="text" id="search-input" placeholder="Buscar..." class="w-full p-3 pl-10 border rounded-lg"><div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg></div></div>
+                        <div class="flex gap-2"><button id="descargar-excel-btn" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700">Excel</button></div>
+                    </div>
+                    <div id="loading-state" class="text-center py-8"><p class="text-gray-500">Cargando inventario...</p></div>
+                    <div id="container-principal">
+                        <div id="empty-state" class="hidden text-center bg-white p-8 rounded-lg shadow-md"><h3 class="mt-2 text-lg font-medium">Inventario vacío</h3></div>
+                        <div id="lista-insumos" class="space-y-3"></div>
+                    </div>
                 </div>
                 <div id="ingreso-insumos" class="tab-content">
-                    <!-- Contenido de Ingreso de Insumos -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg mb-6">
+                        <h2 class="text-2xl font-semibold mb-4">Agregar Nuevo Insumo</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                            <div><input type="text" id="nombre-insumo" placeholder="Nombre del insumo" class="p-3 w-full border rounded-lg"><p id="nombre-insumo-validation" class="validation-message"></p></div>
+                            <div><input type="text" id="codigo-insumo" placeholder="Código (Opcional)" class="p-3 w-full border rounded-lg"></div>
+                            <div><input type="number" id="cantidad-inicial" placeholder="Cantidad" min="0" class="p-3 w-full border rounded-lg"><p id="cantidad-inicial-validation" class="validation-message"></p></div>
+                            <div><input type="text" id="unidad-insumo" placeholder="Unidad (ej: Lt, Kg)" class="p-3 w-full border rounded-lg"><p id="unidad-insumo-validation" class="validation-message"></p></div>
+                            <div class="md:col-span-2"><button id="agregar-btn" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg disabled:bg-gray-400">Agregar</button></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h2 class="text-2xl font-semibold mb-4">Importar desde CSV</h2>
+                        <input type="file" id="csv-file-input" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-indigo-50"/>
+                        <button id="import-csv-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg">Importar</button>
+                    </div>
                 </div>
-                <div id="admin-users" class="tab-content">
-                    <!-- Contenido de Gestión de Usuarios -->
+                <div id="admin-users" class="tab-content hidden">
+                     <div class="bg-white p-6 rounded-xl shadow-lg">
+                         <h2 class="text-2xl font-semibold mb-4">Usuarios Registrados</h2>
+                         <p class="text-sm text-gray-600 mb-4">Los nuevos usuarios deben ser creados directamente en la <a href="https://console.firebase.google.com/" target="_blank" class="text-indigo-600 underline">Consola de Firebase</a> para mantener la seguridad del sistema.</p>
+                         <div id="user-list" class="space-y-2">Cargando...</div>
+                     </div>
                 </div>
             </div>
         </div>
     </div>
 
     <div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center">
-        <!-- Contenido del Modal -->
+        <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50"></div>
+        <div id="modal-content" class="bg-white rounded-lg shadow-xl p-6 m-4 max-w-lg w-full z-10">
+            <h3 id="modal-title" class="text-xl font-bold mb-4"></h3>
+            <div id="modal-body" class="text-gray-700"></div>
+            <div id="modal-actions" class="mt-6 flex justify-end gap-3">
+                <button id="modal-cancel-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Cancelar</button>
+                <button id="modal-save-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">Guardar</button>
+                <button id="modal-confirm-btn" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700">Confirmar</button>
+                <button id="modal-ok-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">OK</button>
+            </div>
+        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, increment, writeBatch, enableIndexedDbPersistence, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, increment, writeBatch, enableIndexedDbPersistence, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAsjMYndgto8apKjasCtD7Hsblw5f6DV8c",
@@ -98,135 +131,84 @@
             measurementId: "G-G7QXY50X7B"
         };
 
-        let app, db, auth, userId, userRole, inventarioActual = [], unsubscribe;
+        let app, db, auth, userId, userRole, inventarioActual = [], unsubscribeInsumos, unsubscribeUsers;
         let isEditing = false;
-
-        const refs = {
-            authView: document.getElementById('auth-view'),
-            appView: document.getElementById('app-view'),
-            loginBtn: document.getElementById('login-btn'),
-            logoutBtn: document.getElementById('logout-btn'),
-            loginError: document.getElementById('login-error'),
-            userEmailDisplay: document.getElementById('user-email-display'),
-            tabsNav: document.getElementById('tabs-nav'),
-            tabContentContainer: document.getElementById('tab-content-container'),
-        };
+        let modalResolve;
 
         async function main() {
             app = initializeApp(firebaseConfig);
             db = getFirestore(app);
             auth = getAuth(app);
             await enableIndexedDbPersistence(db).catch(console.warn);
-            configurarAuthListeners();
-        }
+            
+            document.getElementById('login-btn').addEventListener('click', async () => {
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                try {
+                    await signInWithEmailAndPassword(auth, email, password);
+                    document.getElementById('login-error').textContent = '';
+                } catch (error) {
+                    document.getElementById('login-error').textContent = 'Email o contraseña incorrectos.';
+                }
+            });
 
-        function configurarAuthListeners() {
             onAuthStateChanged(auth, async (user) => {
+                const appView = document.getElementById('app-view');
+                const authView = document.getElementById('auth-view');
                 if (user) {
                     userId = user.uid;
                     const userDoc = await getDoc(doc(db, "users", userId));
                     userRole = userDoc.exists() ? userDoc.data().role : 'user';
                     
-                    refs.userEmailDisplay.textContent = `Sesión iniciada como: ${user.email}`;
-                    refs.authView.classList.add('hidden');
-                    refs.appView.classList.remove('hidden');
+                    document.getElementById('user-email-display').textContent = `Sesión: ${user.email}`;
+                    authView.classList.add('hidden');
+                    appView.classList.remove('hidden');
                     
                     renderizarUI();
-                    escucharCambiosEnInsumos();
                 } else {
                     userId = null;
                     userRole = null;
-                    refs.authView.classList.remove('hidden');
-                    refs.appView.classList.add('hidden');
-                    if (unsubscribe) unsubscribe();
+                    authView.classList.remove('hidden');
+                    appView.classList.add('hidden');
+                    if (unsubscribeInsumos) unsubscribeInsumos();
+                    if (unsubscribeUsers) unsubscribeUsers();
                 }
             });
-
-            refs.loginBtn.addEventListener('click', async () => {
-                const email = document.getElementById('login-email').value;
-                const password = document.getElementById('login-password').value;
-                try {
-                    await signInWithEmailAndPassword(auth, email, password);
-                    refs.loginError.textContent = '';
-                } catch (error) {
-                    refs.loginError.textContent = 'Email o contraseña incorrectos.';
-                }
-            });
-
-            refs.logoutBtn.addEventListener('click', () => signOut(auth));
         }
 
         function renderizarUI() {
-            renderizarTabs();
-            renderizarContenidoTabs();
+            const tabsNav = document.getElementById('tabs-nav');
+            tabsNav.innerHTML = `
+                <button class="tab-btn" data-tab="control-stock">Control de Stock</button>
+                <button class="tab-btn" data-tab="ingreso-insumos">Ingreso de Insumos</button>
+            `;
+            if (userRole === 'admin') {
+                const adminTabBtn = document.createElement('button');
+                adminTabBtn.id = 'admin-tab-btn';
+                adminTabBtn.className = 'tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg';
+                adminTabBtn.dataset.tab = 'admin-users';
+                adminTabBtn.textContent = 'Gestión de Usuarios';
+                tabsNav.appendChild(adminTabBtn);
+                escucharCambiosEnUsuarios();
+            }
+            
             configurarEventListenersApp();
             activarTab('control-stock');
         }
 
-        function renderizarTabs() {
-            let tabsHTML = `
-                <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg" data-tab="control-stock">Control de Stock</button>
-                <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg" data-tab="ingreso-insumos">Ingreso de Insumos</button>
-            `;
-            if (userRole === 'admin') {
-                tabsHTML += `<button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg" data-tab="admin-users">Gestión de Usuarios</button>`;
-            }
-            refs.tabsNav.innerHTML = tabsHTML;
-        }
-
-        function renderizarContenidoTabs() {
-            refs.tabContentContainer.querySelector('#control-stock').innerHTML = `
-                <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
-                    <div class="relative w-full md:w-1/3"><input type="text" id="search-input" placeholder="Buscar..." class="w-full p-3 pl-10 border rounded-lg"><div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg></div></div>
-                    <div class="flex gap-2"><button id="descargar-excel-btn" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700">Excel</button></div>
-                </div>
-                <div id="loading-state" class="text-center py-8"><p class="text-gray-500">Cargando inventario...</p></div>
-                <div id="container-principal">
-                    <div id="empty-state" class="hidden text-center bg-white p-8 rounded-lg shadow-md"><h3 class="mt-2 text-lg font-medium">Inventario vacío</h3></div>
-                    <div id="lista-insumos" class="space-y-3"></div>
-                </div>`;
-
-            refs.tabContentContainer.querySelector('#ingreso-insumos').innerHTML = `
-                <div class="bg-white p-6 rounded-xl shadow-lg mb-6">
-                    <h2 class="text-2xl font-semibold mb-4">Agregar Nuevo Insumo</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
-                        <div><input type="text" id="nombre-insumo" placeholder="Nombre del insumo" class="p-3 w-full border rounded-lg"><p id="nombre-insumo-validation" class="validation-message"></p></div>
-                        <div><input type="text" id="codigo-insumo" placeholder="Código (Opcional)" class="p-3 w-full border rounded-lg"></div>
-                        <div><input type="number" id="cantidad-inicial" placeholder="Cantidad" min="0" class="p-3 w-full border rounded-lg"><p id="cantidad-inicial-validation" class="validation-message"></p></div>
-                        <div><input type="text" id="unidad-insumo" placeholder="Unidad (ej: Lt, Kg)" class="p-3 w-full border rounded-lg"><p id="unidad-insumo-validation" class="validation-message"></p></div>
-                        <div class="md:col-span-2"><button id="agregar-btn" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg disabled:bg-gray-400">Agregar</button></div>
-                    </div>
-                </div>
-                <div class="bg-white p-6 rounded-xl shadow-lg">
-                    <h2 class="text-2xl font-semibold mb-4">Importar desde CSV</h2>
-                    <input type="file" id="csv-file-input" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-indigo-50"/>
-                    <button id="import-csv-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg">Importar</button>
-                </div>`;
-
-            if (userRole === 'admin') {
-                refs.tabContentContainer.querySelector('#admin-users').innerHTML = `
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div class="bg-white p-6 rounded-xl shadow-lg">
-                            <h2 class="text-2xl font-semibold mb-4">Crear Nuevo Usuario</h2>
-                            <p class="text-sm text-gray-600 mb-4">Esto creará un nuevo usuario en Firebase Authentication y en la base de datos de usuarios.</p>
-                            <div class="space-y-4">
-                                <div><label for="new-user-email">Email</label><input type="email" id="new-user-email" class="mt-1 p-3 w-full border rounded-lg"></div>
-                                <div><label for="new-user-password">Contraseña</label><input type="password" id="new-user-password" class="mt-1 p-3 w-full border rounded-lg"></div>
-                                <p id="new-user-error" class="validation-message"></p>
-                                <button id="create-user-btn" class="w-full bg-green-600 text-white font-semibold py-3 rounded-lg">Crear Usuario</button>
-                            </div>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl shadow-lg">
-                             <h2 class="text-2xl font-semibold mb-4">Usuarios Registrados</h2>
-                             <div id="user-list" class="space-y-2">Cargando...</div>
-                        </div>
-                    </div>`;
+        function activarTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            const tabButton = document.querySelector(`[data-tab="${tabId}"]`);
+            if (tabButton) {
+                tabButton.classList.add('active');
             }
         }
-        
+
         function configurarEventListenersApp() {
-            // Re-asignar listeners a los elementos recién creados
-            document.querySelectorAll('.tab-btn').forEach(tab => tab.addEventListener('click', () => activarTab(tab.dataset.tab)));
+            document.querySelectorAll('.tab-btn').forEach(tab => tab.addEventListener('click', (e) => activarTab(e.target.dataset.tab)));
+            document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
             document.getElementById('agregar-btn').addEventListener('click', agregarInsumo);
             document.getElementById('descargar-excel-btn').addEventListener('click', descargarExcel);
             document.getElementById('import-csv-btn').addEventListener('click', handleCsvImport);
@@ -237,10 +219,10 @@
             formInputs.forEach(input => input.addEventListener('input', validarFormularioIngreso));
             validarFormularioIngreso();
 
-            if (userRole === 'admin') {
-                document.getElementById('create-user-btn').addEventListener('click', crearNuevoUsuario);
-                escucharCambiosEnUsuarios();
-            }
+            document.getElementById('modal-backdrop').addEventListener('click', () => hideModal(false));
+            document.getElementById('modal-cancel-btn').addEventListener('click', () => hideModal(false));
+            document.getElementById('modal-confirm-btn').addEventListener('click', () => hideModal(true));
+            document.getElementById('modal-ok-btn').addEventListener('click', () => hideModal(true));
         }
         
         function validarFormularioIngreso() {
@@ -248,23 +230,45 @@
             const nombreInput = document.getElementById('nombre-insumo');
             const cantidadInput = document.getElementById('cantidad-inicial');
             const unidadInput = document.getElementById('unidad-insumo');
+            const nombreValidation = document.getElementById('nombre-insumo-validation');
+            const cantidadValidation = document.getElementById('cantidad-inicial-validation');
+            const unidadValidation = document.getElementById('unidad-insumo-validation');
+
+            if (nombreInput.value.trim() === '') {
+                nombreValidation.textContent = 'El nombre es obligatorio.';
+                nombreInput.classList.add('input-error');
+                esValido = false;
+            } else {
+                nombreValidation.textContent = '';
+                nombreInput.classList.remove('input-error');
+            }
             
-            if (nombreInput.value.trim() === '') esValido = false;
-            if (cantidadInput.value.trim() === '' || isNaN(parseFloat(cantidadInput.value)) || parseFloat(cantidadInput.value) < 0) esValido = false;
-            if (unidadInput.value.trim() === '') esValido = false;
+            if (cantidadInput.value.trim() === '' || isNaN(parseFloat(cantidadInput.value)) || parseFloat(cantidadInput.value) < 0) {
+                 cantidadValidation.textContent = 'Debe ser un número válido y positivo.';
+                 cantidadInput.classList.add('input-error');
+                 esValido = false;
+            } else {
+                cantidadValidation.textContent = '';
+                cantidadInput.classList.remove('input-error');
+            }
+
+            if (unidadInput.value.trim() === '') {
+                unidadValidation.textContent = 'La unidad es obligatoria.';
+                unidadInput.classList.add('input-error');
+                esValido = false;
+            } else {
+                unidadValidation.textContent = '';
+                unidadInput.classList.remove('input-error');
+            }
             
             document.getElementById('agregar-btn').disabled = !esValido;
         }
 
-        async function agregarInsumo() {
-            // ... (lógica existente, ya es correcta)
-        }
-
         function escucharCambiosEnInsumos() {
             if (!userId) return;
-            if (unsubscribe) unsubscribe();
+            if (unsubscribeInsumos) unsubscribeInsumos();
             const q = query(collection(db, "insumos", userId, "items"));
-            unsubscribe = onSnapshot(q, (snapshot) => {
+            unsubscribeInsumos = onSnapshot(q, (snapshot) => {
                 document.getElementById('loading-state').classList.add('hidden');
                 document.getElementById('container-principal').classList.remove('hidden');
                 inventarioActual = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -275,7 +279,7 @@
                 if (error.code === 'permission-denied') manejarErrorDePermisos(error);
             });
         }
-        
+
         function renderizarListaInsumos(insumos) {
             const listaContainer = document.getElementById('lista-insumos');
             const emptyState = document.getElementById('empty-state');
@@ -284,10 +288,9 @@
             
             if (insumos.length === 0) {
                 emptyState.classList.remove('hidden');
-                listaContainer.classList.add('hidden');
+                listaContainer.innerHTML = '';
             } else {
                  emptyState.classList.add('hidden');
-                 listaContainer.classList.remove('hidden');
                  if (filteredInsumos.length === 0) {
                     listaContainer.innerHTML = `<p class="text-center text-gray-500 py-4">No se encontraron insumos.</p>`;
                  } else {
@@ -312,62 +315,205 @@
             }
         }
 
-        // --- Lógica de Admin ---
         function escucharCambiosEnUsuarios() {
             if (userRole !== 'admin') return;
+            if (unsubscribeUsers) unsubscribeUsers();
             const userListContainer = document.getElementById('user-list');
-            onSnapshot(query(collection(db, "users")), (snapshot) => {
+            unsubscribeUsers = onSnapshot(query(collection(db, "users")), (snapshot) => {
                 const users = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
                 userListContainer.innerHTML = users.map(user => `
-                    <div class="p-2 border-b">${user.email} <span class="text-xs font-semibold uppercase ${user.role === 'admin' ? 'text-red-500' : 'text-gray-500'}">${user.role}</span></div>
+                    <div class="p-2 border-b flex justify-between items-center">
+                        <span>${user.email}</span>
+                        <span class="text-xs font-semibold uppercase px-2 py-1 rounded-full ${user.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-700'}">${user.role}</span>
+                    </div>
                 `).join('');
             });
         }
+        
+        async function handleListaInsumosClick(e) {
+            const button = e.target.closest('button');
+            const span = e.target.closest('span[data-action="edit-quantity"]');
 
-        async function crearNuevoUsuario() {
-            const email = document.getElementById('new-user-email').value;
-            const password = document.getElementById('new-user-password').value;
-            const errorEl = document.getElementById('new-user-error');
-            
-            if (!email || password.length < 6) {
-                errorEl.textContent = "Email inválido o contraseña muy corta (mín. 6 caracteres).";
-                return;
-            }
-            errorEl.textContent = '';
-            
-            // **IMPORTANTE:** Esta es una simplificación insegura para este entorno.
-            // En una app real, esto DEBE hacerse con Cloud Functions para no exponer
-            // la lógica de creación de usuarios en el cliente.
-            try {
-                // Se crea un contexto de autenticación temporal para crear el usuario
-                // Esto no es ideal, pero simula el flujo.
-                const tempApp = initializeApp(firebaseConfig, "temp-creator");
-                const tempAuth = getAuth(tempApp);
-                const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
-                
-                // Guardar el rol del usuario en Firestore
-                await setDoc(doc(db, "users", userCredential.user.uid), {
-                    email: userCredential.user.email,
-                    role: "user"
-                });
-                
-                await signOut(tempAuth); // Cerrar sesión del creador temporal
-                
-                document.getElementById('new-user-email').value = '';
-                document.getElementById('new-user-password').value = '';
-                showModal("Éxito", `Usuario ${email} creado correctamente.`);
-
-            } catch (error) {
-                console.error("Error creando usuario:", error);
-                errorEl.textContent = `Error: ${error.message}`;
+            if (button) {
+                const insumoId = button.dataset.id;
+                if (!insumoId) return;
+                const action = button.dataset.action;
+                const docRef = doc(db, "insumos", userId, "items", insumoId);
+                try {
+                    if (action === 'restar') await updateDoc(docRef, { cantidad: increment(-1) });
+                    else if (action === 'sumar') await updateDoc(docRef, { cantidad: increment(1) });
+                    else if (action === 'eliminar') {
+                        if (await showModal('Confirmar Eliminación', '¿Estás seguro?', 'confirm')) await deleteDoc(docRef);
+                    } else if (action === 'editar') {
+                        const insumo = inventarioActual.find(item => item.id === insumoId);
+                        if (insumo) mostrarModalEdicion(insumo);
+                    }
+                } catch (error) {
+                    if (error.code === 'permission-denied') manejarErrorDePermisos(error);
+                    else { console.error("Error:", error); showModal("Error", "No se pudo realizar la operación."); }
+                }
+            } else if (span && !isEditing) {
+                isEditing = true;
+                const insumoId = span.dataset.id;
+                const insumo = inventarioActual.find(item => item.id === insumoId);
+                if (insumo) editarCantidadDirectamente(span, insumo);
             }
         }
+        
+        function editarCantidadDirectamente(spanElement, insumo) {
+            spanElement.innerHTML = `<div class="flex items-center gap-1"><input type="number" value="${insumo.cantidad}" class="w-24 text-center bg-white border border-indigo-300 rounded-md p-2"/><button class="p-2 text-green-600 rounded-md hover:bg-green-100"><svg class="h-6 w-6 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></button><button class="p-2 text-red-600 rounded-md hover:bg-red-100"><svg class="h-6 w-6 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.697a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button></div>`;
+            const input = spanElement.querySelector('input');
+            const [saveBtn, cancelBtn] = spanElement.querySelectorAll('button');
+            input.focus(); input.select();
+            const finalizeEdit = () => { isEditing = false; };
+            const saveChanges = async () => {
+                const nuevaCantidad = parseFloat(input.value);
+                if (!isNaN(nuevaCantidad) && nuevaCantidad >= 0) {
+                    try {
+                        await updateDoc(doc(db, "insumos", userId, "items", insumo.id), { cantidad: nuevaCantidad });
+                    } catch (error) {
+                        if (error.code === 'permission-denied') manejarErrorDePermisos(error);
+                        else { console.error("Error al actualizar:", error); showModal("Error", "No se pudo actualizar."); }
+                    }
+                }
+                finalizeEdit();
+            };
+            const cancelChanges = () => {
+                finalizeEdit();
+                renderizarListaInsumos(inventarioActual);
+            };
+            saveBtn.onclick = saveChanges;
+            cancelBtn.onclick = cancelChanges;
+            input.onkeydown = (e) => { if (e.key === 'Enter') saveChanges(); if (e.key === 'Escape') cancelChanges(); };
+            input.onblur = (e) => { if (!spanElement.contains(e.relatedTarget)) cancelChanges(); };
+        }
 
-        // El resto de las funciones (handleListaInsumosClick, editarCantidadDirectamente, etc.)
-        // se mantienen igual, pero se deben llamar desde los nuevos listeners.
-        // Por brevedad, no se repiten aquí, pero su lógica es la misma.
-        // La función `configurarEventListenersApp` se encarga de re-conectarlos.
+        async function agregarInsumo() {
+            if (!validarFormularioIngreso()) return;
+            if (!userId) return showModal('Error', 'No se ha podido identificar al usuario.');
+            const nombre = document.getElementById('nombre-insumo').value.trim();
+            const codigo = document.getElementById('codigo-insumo').value.trim();
+            const cantidad = parseFloat(document.getElementById('cantidad-inicial').value);
+            const unidad = document.getElementById('unidad-insumo').value.trim();
+            try {
+                await addDoc(collection(db, "insumos", userId, "items"), { nombre, codigo: codigo || '', cantidad, unidad, createdAt: new Date() });
+                [document.getElementById('nombre-insumo'), document.getElementById('codigo-insumo'), document.getElementById('cantidad-inicial'), document.getElementById('unidad-insumo')].forEach(i => i.value = '');
+                validarFormularioIngreso();
+                showModal('Éxito', 'Insumo agregado correctamente.');
+                activarTab('control-stock');
+            } catch (error) {
+                if (error.code === 'permission-denied') manejarErrorDePermisos(error);
+                else { console.error("Error al agregar:", error); showModal('Error', 'Hubo un error al guardar.'); }
+            }
+        }
+        
+        // FIX: Se agregaron las funciones que faltaban
+        function showModal(title, body, type = 'alert') {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+            const modalOkBtn = document.getElementById('modal-ok-btn');
+            const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+            const modalSaveBtn = document.getElementById('modal-save-btn');
+            const modalCancelBtn = document.getElementById('modal-cancel-btn');
 
+            modalTitle.textContent = title;
+            modalBody.innerHTML = body;
+            modalOkBtn.style.display = type === 'alert' ? 'inline-block' : 'none';
+            modalConfirmBtn.style.display = type === 'confirm' ? 'inline-block' : 'none';
+            modalSaveBtn.style.display = type === 'edit' ? 'inline-block' : 'none';
+            modalCancelBtn.style.display = (type === 'confirm' || type === 'edit') ? 'inline-block' : 'none';
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            return new Promise(resolve => { modalResolve = resolve; });
+        }
+
+        function hideModal(value) {
+            const modal = document.getElementById('modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            if (modalResolve) modalResolve(value);
+        }
+
+        async function mostrarModalEdicion(insumo) {
+            const formHTML = `<div class="space-y-4"><div><label for="edit-nombre" class="block text-sm font-medium text-gray-700">Nombre</label><input type="text" id="edit-nombre" value="${insumo.nombre}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></div><div><label for="edit-codigo" class="block text-sm font-medium text-gray-700">Código</label><input type="text" id="edit-codigo" value="${insumo.codigo || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></div><div><label for="edit-unidad" class="block text-sm font-medium text-gray-700">Unidad</label><input type="text" id="edit-unidad" value="${insumo.unidad}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></div></div>`;
+            await showModal('Editar Insumo', formHTML, 'edit');
+            document.getElementById('modal-save-btn').onclick = async () => {
+                const nuevoNombre = document.getElementById('edit-nombre').value.trim();
+                const nuevoCodigo = document.getElementById('edit-codigo').value.trim();
+                const nuevaUnidad = document.getElementById('edit-unidad').value.trim();
+                if (!nuevoNombre || !nuevaUnidad) return alert('Nombre y unidad son obligatorios.');
+                try {
+                    await updateDoc(doc(db, "insumos", userId, "items", insumo.id), { nombre: nuevoNombre, codigo: nuevoCodigo, unidad: nuevaUnidad });
+                    hideModal();
+                } catch (error) {
+                     if (error.code === 'permission-denied') manejarErrorDePermisos(error);
+                     else { console.error("Error al guardar:", error); alert("No se pudieron guardar los cambios."); }
+                }
+            };
+        }
+
+        function descargarExcel() {
+            if (inventarioActual.length === 0) return showModal('Inventario Vacío', 'No hay datos para exportar.');
+            const headers = "Nombre\tCódigo\tCantidad\tUnidad\n";
+            const rows = inventarioActual.map(item => `${item.nombre}\t${item.codigo || ''}\t${item.cantidad}\t${item.unidad}`).join("\n");
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(new Blob([headers + rows], { type: 'application/vnd.ms-excel' }));
+            link.download = 'inventario.xls';
+            link.click();
+        }
+
+        async function handleCsvImport() {
+            const csvFileInput = document.getElementById('csv-file-input');
+            if (!csvFileInput.files.length) return showModal('Error', 'Por favor, selecciona un archivo CSV primero.');
+            const file = csvFileInput.files[0];
+            
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: async (results) => {
+                    let nuevos = 0, actualizados = 0;
+                    const batch = writeBatch(db);
+
+                    for (const row of results.data) {
+                        const nombre = (row.Producto || '').trim();
+                        const codigo = (row.Código || row.Codigo || '').trim();
+                        const cantidad = parseFloat(row.Cantidad);
+                        const unidad = (row.Unidad || '').trim();
+
+                        if (!nombre || !unidad || isNaN(cantidad)) continue;
+
+                        const itemExistente = inventarioActual.find(item => 
+                            (codigo && item.codigo && item.codigo.toLowerCase() === codigo.toLowerCase()) || 
+                            (!codigo && item.nombre.toLowerCase() === nombre.toLowerCase())
+                        );
+
+                        if (itemExistente) {
+                            const docRef = doc(db, "insumos", userId, "items", itemExistente.id);
+                            batch.update(docRef, { cantidad });
+                            actualizados++;
+                        } else {
+                            const docRef = doc(collection(db, "insumos", userId, "items"));
+                            batch.set(docRef, { nombre, codigo, cantidad, unidad, createdAt: new Date() });
+                            nuevos++;
+                        }
+                    }
+                    
+                    if (nuevos === 0 && actualizados === 0) return showModal('Aviso', 'No se encontraron datos válidos para importar. Revisa las columnas: Código, Producto, Cantidad, Unidad.');
+
+                    try {
+                        await batch.commit();
+                        showModal('Importación Completa', `${actualizados} insumos actualizados y ${nuevos} insumos agregados.`);
+                        activarTab('control-stock');
+                    } catch (error) {
+                        if (error.code === 'permission-denied') manejarErrorDePermisos(error);
+                        else { console.error("Error al importar:", error); showModal('Error', 'No se pudo importar el archivo.'); }
+                    }
+                },
+                error: (error) => showModal('Error', 'Hubo un problema al leer el archivo CSV.')
+            });
+        }
+        
         main();
     </script>
 </body>

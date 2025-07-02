@@ -92,11 +92,22 @@
                     </div>
                 </div>
                 <div id="admin-users" class="tab-content hidden">
-                     <div class="bg-white p-6 rounded-xl shadow-lg">
-                         <h2 class="text-2xl font-semibold mb-4">Usuarios Registrados</h2>
-                         <p class="text-sm text-gray-600 mb-4">Los nuevos usuarios deben ser creados directamente en la <a href="https://console.firebase.google.com/" target="_blank" class="text-indigo-600 underline">Consola de Firebase</a> para mantener la seguridad del sistema.</p>
-                         <div id="user-list" class="space-y-2">Cargando...</div>
-                     </div>
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="bg-white p-6 rounded-xl shadow-lg">
+                            <h2 class="text-2xl font-semibold mb-4">Crear Nuevo Usuario</h2>
+                            <p class="text-sm text-gray-600 mb-4">Esto creará un nuevo usuario en Firebase Authentication y en la base de datos de usuarios.</p>
+                            <div class="space-y-4">
+                                <div><label for="new-user-email" class="block text-sm font-medium">Email</label><input type="email" id="new-user-email" class="mt-1 p-3 w-full border rounded-lg"></div>
+                                <div><label for="new-user-password" class="block text-sm font-medium">Contraseña</label><input type="password" id="new-user-password" class="mt-1 p-3 w-full border rounded-lg"></div>
+                                <p id="new-user-error" class="validation-message"></p>
+                                <button id="create-user-btn" class="w-full bg-green-600 text-white font-semibold py-3 rounded-lg">Crear Usuario</button>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-lg">
+                             <h2 class="text-2xl font-semibold mb-4">Usuarios Registrados</h2>
+                             <div id="user-list" class="space-y-2">Cargando...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -118,8 +129,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, increment, writeBatch, enableIndexedDbPersistence, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, increment, writeBatch, enableIndexedDbPersistence, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAsjMYndgto8apKjasCtD7Hsblw5f6DV8c",
@@ -201,9 +212,7 @@
             document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             const tabButton = document.querySelector(`[data-tab="${tabId}"]`);
-            if (tabButton) {
-                tabButton.classList.add('active');
-            }
+            if (tabButton) tabButton.classList.add('active');
         }
 
         function configurarEventListenersApp() {
@@ -223,6 +232,10 @@
             document.getElementById('modal-cancel-btn').addEventListener('click', () => hideModal(false));
             document.getElementById('modal-confirm-btn').addEventListener('click', () => hideModal(true));
             document.getElementById('modal-ok-btn').addEventListener('click', () => hideModal(true));
+
+            if (userRole === 'admin') {
+                document.getElementById('create-user-btn').addEventListener('click', crearNuevoUsuario);
+            }
         }
         
         function validarFormularioIngreso() {
@@ -327,6 +340,8 @@
                         <span class="text-xs font-semibold uppercase px-2 py-1 rounded-full ${user.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-700'}">${user.role}</span>
                     </div>
                 `).join('');
+            }, (error) => {
+                 if (error.code === 'permission-denied') manejarErrorDePermisos(error);
             });
         }
         
@@ -407,7 +422,6 @@
             }
         }
         
-        // FIX: Se agregaron las funciones que faltaban
         function showModal(title, body, type = 'alert') {
             const modal = document.getElementById('modal');
             const modalTitle = document.getElementById('modal-title');
@@ -514,6 +528,44 @@
             });
         }
         
+        async function crearNuevoUsuario() {
+            const emailInput = document.getElementById('new-user-email');
+            const passwordInput = document.getElementById('new-user-password');
+            const errorEl = document.getElementById('new-user-error');
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            
+            if (!email || password.length < 6) {
+                errorEl.textContent = "Email inválido o contraseña muy corta (mín. 6 caracteres).";
+                return;
+            }
+            errorEl.textContent = '';
+            
+            try {
+                // Esta es una solución alternativa para crear usuarios desde el cliente.
+                // Es crucial que las reglas de seguridad de Firestore impidan que usuarios no-admin
+                // se asignen a sí mismos el rol de admin.
+                const tempApp = initializeApp(firebaseConfig, `creator-${Date.now()}`);
+                const tempAuth = getAuth(tempApp);
+                const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
+                
+                await setDoc(doc(db, "users", userCredential.user.uid), {
+                    email: userCredential.user.email,
+                    role: "user"
+                });
+                
+                await signOut(tempAuth);
+                
+                emailInput.value = '';
+                passwordInput.value = '';
+                showModal("Éxito", `Usuario ${email} creado correctamente.`);
+
+            } catch (error) {
+                console.error("Error creando usuario:", error);
+                errorEl.textContent = `Error: ${error.message}`;
+            }
+        }
+
         main();
     </script>
 </body>

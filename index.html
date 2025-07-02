@@ -38,7 +38,7 @@
             min-height: 1.25rem;
         }
         .input-error {
-            border-color: #ef4444;
+            border-color: #ef4444 !important;
         }
     </style>
 </head>
@@ -154,10 +154,12 @@
 
         let app, db, auth, userId, inventarioActual = [], modalResolve, isEditing = false;
 
+        // FIX: Se agregaron las referencias a los elementos de validación.
         const refs = {
             nombreInsumo: document.getElementById('nombre-insumo'), codigoInsumo: document.getElementById('codigo-insumo'),
             cantidadInicial: document.getElementById('cantidad-inicial'), unidadInsumo: document.getElementById('unidad-insumo'),
-            nombreInsumoValidation: document.getElementById('nombre-insumo-validation'), cantidadInicialValidation: document.getElementById('cantidad-inicial-validation'),
+            nombreInsumoValidation: document.getElementById('nombre-insumo-validation'), 
+            cantidadInicialValidation: document.getElementById('cantidad-inicial-validation'),
             unidadInsumoValidation: document.getElementById('unidad-insumo-validation'),
             agregarBtn: document.getElementById('agregar-btn'), containerPrincipal: document.getElementById('container-principal'),
             listaInsumos: document.getElementById('lista-insumos'), loadingState: document.getElementById('loading-state'),
@@ -231,11 +233,9 @@
             showModal("Error de Permisos", `<p class="mb-3">La app no tiene permiso para acceder a la base de datos. Esto se debe a que las <strong>Reglas de Seguridad</strong> de tu proyecto en Firebase no están configuradas correctamente.</p><p class="mb-2">Por favor, ve a <strong>Firestore Database > Reglas</strong> en tu Consola de Firebase y usa estas reglas:</p><div class="code-block">rules_version = '2';<br>service cloud.firestore {<br>&nbsp;&nbsp;match /databases/{database}/documents {<br>&nbsp;&nbsp;&nbsp;&nbsp;match /insumos/{userId}/{document=**} {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allow read, write: if request.auth != null && request.auth.uid == userId;<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;}<br>}</div>`);
         }
         
-        // --- NUEVA LÓGICA DE VALIDACIÓN ---
         function validarFormularioIngreso() {
             let esValido = true;
             
-            // Validar Nombre
             if (refs.nombreInsumo.value.trim() === '') {
                 refs.nombreInsumoValidation.textContent = 'El nombre es obligatorio.';
                 refs.nombreInsumo.classList.add('input-error');
@@ -245,10 +245,9 @@
                 refs.nombreInsumo.classList.remove('input-error');
             }
 
-            // Validar Cantidad
             const cantidad = parseFloat(refs.cantidadInicial.value);
-            if (isNaN(cantidad) || cantidad < 0) {
-                 refs.cantidadInicialValidation.textContent = 'Debe ser un número positivo.';
+            if (refs.cantidadInicial.value.trim() === '' || isNaN(cantidad) || cantidad < 0) {
+                 refs.cantidadInicialValidation.textContent = 'Debe ser un número válido y positivo.';
                  refs.cantidadInicial.classList.add('input-error');
                  esValido = false;
             } else {
@@ -256,7 +255,6 @@
                 refs.cantidadInicial.classList.remove('input-error');
             }
 
-            // Validar Unidad
             if (refs.unidadInsumo.value.trim() === '') {
                 refs.unidadInsumoValidation.textContent = 'La unidad es obligatoria.';
                 refs.unidadInsumo.classList.add('input-error');
@@ -270,7 +268,6 @@
             return esValido;
         }
 
-
         function configurarEventListeners() {
             refs.tabs.forEach(tab => tab.addEventListener('click', () => activarTab(tab.dataset.tab)));
             refs.agregarBtn.addEventListener('click', agregarInsumo);
@@ -281,10 +278,12 @@
             refs.searchInput.addEventListener('input', () => renderizarListaInsumos(inventarioActual));
             refs.listaInsumos.addEventListener('click', handleListaInsumosClick);
 
-            // Listeners para validación en tiempo real
             [refs.nombreInsumo, refs.cantidadInicial, refs.unidadInsumo].forEach(input => {
                 input.addEventListener('input', validarFormularioIngreso);
             });
+            
+            // FIX: Llamar a la validación al inicio para establecer el estado inicial del botón
+            validarFormularioIngreso();
 
             refs.modal.backdrop.addEventListener('click', () => hideModal(false));
             refs.modal.cancelBtn.addEventListener('click', () => hideModal(false));
@@ -374,7 +373,7 @@
             try {
                 await addDoc(collection(db, "insumos", userId, "items"), { nombre, codigo: codigo || '', cantidad, unidad, createdAt: new Date() });
                 [refs.nombreInsumo, refs.codigoInsumo, refs.cantidadInicial, refs.unidadInsumo].forEach(i => i.value = '');
-                validarFormularioIngreso(); // Resetear validación
+                validarFormularioIngreso();
                 showModal('Éxito', 'Insumo agregado correctamente.');
                 activarTab('control-stock');
             } catch (error) {
